@@ -18,7 +18,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 @dataclass
 class LLMResponse:
     """Structured response from an LLM call."""
