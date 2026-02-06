@@ -1,0 +1,124 @@
+GAME RULES: 2-PLAYER HANABI
+================================================================================
+
+DESCRIPTION
+Hanabi is a cooperative card game where two players work together to build 
+fireworks stacks of ascending numbers (1 through 5) in five distinct colors. 
+The unique constraint is that players cannot see their own cards, only their 
+partner's.
+
+1. SETUP & PRELIMINARIES
+--------------------------------------------------------------------------------
+- Players: 2 Players (IDs: 0 and 1).
+- Deck: 50 cards total.
+  - Suits: 5 (Red, Yellow, Green, Blue, White).
+  - Ranks per Suit: Three 1s, two 2s, two 3s, two 4s, one 5.
+- Tokens:
+  - Info Tokens (Clues): Start with 8. Used to give hints.
+  - Fuse Tokens (Lives): Start with 3. Lost when a wrong card is played.
+- Initial State:
+  - Deck is shuffled.
+  - Each player is dealt 5 cards.
+  - The board (fireworks display) starts empty (all colors at 0).
+  - Discard pile is empty.
+
+2. GAME MECHANICS
+--------------------------------------------------------------------------------
+
+[Turn Order]
+- Players take turns sequentially (Player 0 -> Player 1 -> Player 0...).
+- The game ends immediately if termination conditions are met.
+
+[Observation Space]
+- Public Information: The board state, discard pile, remaining fuse tokens, 
+  remaining info tokens, and the *other* player's hand.
+- Hidden Information: A player CANNOT see the rank or color of the cards in 
+  their own hand.
+
+[Legal Actions]
+A player must perform exactly one of the following three actions on their turn:
+
+A. Play a Card ("Play <card_index>")
+   - The player chooses a card from their hand (indices 0-4).
+   - SUCCESS: If the card is the next logical rank for its color (e.g., Red 3 
+     onto Red 2), it is added to the board.
+   - FAILURE: If the card does not fit, it is discarded, and the team loses 
+     1 Fuse Token.
+   - EFFECT: The player draws a replacement card (if deck is not empty).
+
+B. Give Information ("Reveal ...")
+   - Costs 1 Info Token. Illegal if Info Tokens are at 0.
+   - The player points out specific attributes in their partner's hand.
+   - Color Hint: "These cards are Red."
+   - Rank Hint: "These cards are 5s."
+   - CONSTRAINT: Must identify ALL cards matching that attribute.
+
+C. Discard a Card ("Discard <card_index>")
+   - The player chooses a card to discard to the trash pile.
+   - BENEFIT: Regains 1 Info Token (cannot exceed 8).
+   - EFFECT: The player draws a replacement card.
+   - CONSTRAINT: Illegal if Info Tokens are already at maximum (8).
+
+[State Transitions]
+- Draw Deck: When a card is played or discarded, the hand is refilled 
+  immediately. The new card enters at the last index position.
+- Fuse Logic: If Fuses drop to < 0 (the 3rd strike), the game terminates.
+
+3. TERMINATION & SCORING
+--------------------------------------------------------------------------------
+
+[End Conditions]
+1. Victory: All 5 colors have stacks completed up to rank 5 (Score 25).
+2. Defeat: The 3rd Fuse token is lost.
+3. Deck Exhaustion: The deck runs out. Players get one final round of turns.
+
+[Rewards/Scoring]
+- Score: The sum of the highest rank in each of the 5 color stacks.
+- Range: 0 to 25.
+- Penalty: If the game ends via Defeat (3 fuses lost), score is 0.
+
+4. MOVE NOTATION
+--------------------------------------------------------------------------------
+The following action strings are observed in trajectories:
+
+- Play: "Play <index>" 
+  (e.g., "Play 0" plays the card in the 0th slot of the hand).
+  
+- Discard: "Discard <index>" 
+  (e.g., "Discard 4").
+  
+- Hint Color: "Reveal color <player_id> <color>" 
+  (e.g., "Reveal color 1 R" tells Player 1 about all their Red cards).
+  
+- Hint Rank: "Reveal rank <player_id> <rank>" 
+  (e.g., "Reveal rank 0 5" tells Player 0 about all their 5s).
+
+EXAMPLE TRAJECTORY
+--------------------------------------------------------------------------------
+Trajectory ID: game_log_2p_001
+Result: Score 22 (Game ended by empty deck)
+
+STEP 0: Initial Deal
+- State: Board Empty. Clues: 8. Lives: 3.
+- P0 Hand: [R1, B3, G1, W5, R2] (Hidden from P0)
+- P1 Hand: [Y1, Y1, G2, B4, W1] (Hidden from P1)
+
+STEP 1: Player 0 moves
+- Action: "Reveal rank 1 1"
+- Effect: P0 tells P1 that cards at index 0 and 1 are Rank 1.
+- Clues drop to 7.
+
+STEP 2: Player 1 moves
+- Action: "Play 0"
+- Effect: P1 plays index 0 (Yellow 1). Success. P1 draws Red 5.
+- Board: [Y1]
+
+STEP 3: Player 0 moves
+- Action: "Play 2"
+- Effect: P0 plays index 2 (Green 1). Success. P0 draws Blue 1.
+- Board: [Y1, G1]
+
+STEP 4: Player 1 moves
+- Action: "Discard 4"
+- Effect: P1 discards index 4 (Red 5) to regain a clue. P1 draws Green 5.
+- Clues rise to 8.

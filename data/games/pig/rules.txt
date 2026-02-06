@@ -1,0 +1,58 @@
+## Pig Dice Game Rules
+
+Pig is a simple jeopardy dice game where players risk accumulated points for the chance to score more.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 and Player 1)
+- **Equipment:** One 6-sided die
+- **Win Condition:** First player to reach 100 points wins
+- **Player 0 goes first**
+
+### 2. Turn Structure
+On your turn, you repeatedly choose to either:
+- **Roll:** Roll the die and see the result
+- **Hold:** Bank your turn total and end your turn
+
+### 3. Rolling Rules
+- **Roll 2-6:** Add the die value to your turn total. You may roll again or hold.
+- **Roll 1:** You lose ALL points accumulated this turn. Your turn ends immediately. (This is called "pigging out")
+
+### 4. Holding
+When you hold:
+- Your turn total is added to your permanent score
+- Your turn ends and play passes to the opponent
+
+### 5. Winning
+- The game ends immediately when a player's permanent score reaches or exceeds 100
+- That player wins (+1.0 reward, opponent gets -1.0)
+
+### 6. Game Flow
+This is a game with chance nodes:
+1. Player decides: "roll" or "hold"
+2. If "roll", a CHANCE node determines the die outcome (1-6, each with probability 1/6)
+3. Based on outcome, either turn continues or ends
+
+### 7. Move Notation
+- **roll:** Choose to roll the die
+- **hold:** Bank points and end turn
+- **CHANCE actions:** "1", "2", "3", "4", "5", "6" (die outcomes)
+
+### Example Trajectory
+
+Step 0: current_player=0, legal_actions=["roll"], rewards=[0.0, 0.0]
+  # P0 must roll (no points to hold yet)
+  -> Action: "roll"
+Step 1 (CHANCE): current_player=-1, legal_actions=["1", "2", "3", "4", "5", "6"], rewards=[0.0, 0.0]
+  -> Action: "5"  # Die shows 5
+Step 2: current_player=0, legal_actions=["roll", "hold"], rewards=[0.0, 0.0]
+  # P0 has 5 points this turn, score is still 0
+  -> Action: "roll"
+Step 3 (CHANCE): current_player=-1, legal_actions=["1", "2", "3", "4", "5", "6"], rewards=[0.0, 0.0]
+  -> Action: "4"  # Die shows 4
+Step 4: current_player=0, legal_actions=["roll", "hold"], rewards=[0.0, 0.0]
+  # P0 has 9 points this turn
+  -> Action: "hold"  # Bank 9 points
+Step 5: current_player=1, legal_actions=["roll"], rewards=[0.0, 0.0]
+  # P1's turn, P0 now has 9 permanent points
+  -> Action: "roll"
+...

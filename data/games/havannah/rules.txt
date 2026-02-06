@@ -1,0 +1,51 @@
+## Havannah Game Rules
+
+Havannah is a strategic board game for two players that involves creating specific patterns on a hexagonal board. The game emphasizes strategic placement and pattern recognition, making it an excellent choice for AI research. Below are the comprehensive rules for playing Havannah.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 1 (P1) and Player 2 (P2)).
+- **Board:** A hexagonal grid with a size of 10 hexes per side. The board consists of hexagonal cells.
+- **Pieces:** Each player has an unlimited supply of pieces, typically represented by stones of different colors (e.g., black for P1 and white for P2).
+
+### 2. Objective
+The objective of Havannah is to be the first player to complete one of the following three winning patterns:
+1. **Ring:** A continuous loop of connected stones that encloses one or more hexes.
+2. **Bridge:** A continuous chain of stones connecting any two of the six corner hexes of the board.
+3. **Fork:** A continuous chain of stones connecting any three of the six corner hexes of the board.
+
+### 3. Game Play
+- **Starting Player:** P1 starts the game by placing one of their stones on any unoccupied hex on the board.
+- **Turn Sequence:** Players alternate turns, with each player placing one stone on any unoccupied hex during their turn.
+
+### 4. Winning Conditions
+- A player wins immediately upon completing any one of the three winning patterns (Ring, Bridge, or Fork) with their stones.
+- If the board is completely filled without either player achieving a winning pattern, the game is a draw.
+
+### 5. Move Notation
+Moves are represented using a coordinate system based on the hexagonal grid. The board is labeled with letters for columns and numbers for rows, starting from the top-left corner:
+- **Columns:** Labeled A to T (for a 10-hex-per-side board).
+- **Rows:** Numbered 1 to 19.
+
+A move is denoted by the column letter followed by the row number. For example, placing a stone on the hex in column C and row 5 is represented as "C5".
+
+### 6. Example Trajectory
+This example illustrates a sequence of moves and the resulting game state. Note: The game starts with P1.
+
+Step 0: current_player=0, legal_actions=["A1", "A2", ..., "T19"], rewards=[0.0, 0.0]
+  -> Action: "J10"  # P1 places a stone at J10
+Step 1: current_player=1, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", rewards=[0.0, 0.0]
+  -> Action: "K10"  # P2 places a stone at K10
+Step 2: current_player=0, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", "K10", rewards=[0.0, 0.0]
+  -> Action: "I10"  # P1 places a stone at I10
+Step 3: current_player=1, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", "K10", "I10", rewards=[0.0, 0.0]
+  -> Action: "L10"  # P2 places a stone at L10
+Step 4: current_player=0, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", "K10", "I10", "L10", rewards=[0.0, 0.0]
+  -> Action: "H10"  # P1 places a stone at H10, completing a Bridge
+Step 5 (TERMINAL): current_player=-1, legal_actions=[], rewards=[1.0, -1.0]
+  # P1 wins by completing a Bridge between two corners.
+
+### 7. Additional Rules
+- **Draws:** If the board is completely filled without a winner, the game ends in a draw.
+- **Illegal Moves:** Players cannot place stones on occupied hexes. Any attempt to do so is considered an illegal move.
+
+These rules provide a comprehensive framework for understanding and implementing the game of Havannah, suitable for training AI models to play the game effectively.

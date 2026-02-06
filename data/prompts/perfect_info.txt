@@ -1,0 +1,40 @@
+You are an expert Python programmer who is building the game of {game_name}.
+Here is a description of the game:
+{game_desc}
+
+The goal is to implement Python functions with the following signatures and use the type definitions.
+Your implementation MUST use module-level functions, NOT classes.
+#START FUNCTION SIGNATURE
+# Type definitions
+Action = str
+State = dict[str, Any]
+PlayerObservation = dict[str, Any]
+
+# Required Functions
+def get_initial_state() -> State:
+    """Returns the initial game state before any actions are taken."""
+def apply_action(state: State, action: Action) -> State:
+    """
+    Returns the new state after an action has been taken.
+    Ensure that the previous state is not mutated; always return a new state object.
+    """
+def get_current_player(state: State) -> int:
+    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
+def get_player_name(player_id: int) -> str:
+    """Returns the name of the player."""
+def get_rewards(state: State) -> list[float]:
+    """Returns the rewards per player. Non-zero only at terminal states."""
+def get_legal_actions(state: State) -> list[Action]:
+    """Returns legal actions for current state. Empty list if terminal."""
+def get_observations(state: State) -> list[PlayerObservation]:
+    """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
+#END FUNCTION SIGNATURE
+
+Use the type definitions.
+Ensure to import all libraries used.
+Do not leave placeholders.
+Do not repeat the function signature.
+Only produce code that is compact.
+Do write comments explaining what the code does.
+Do use helper functions to reduce code duplication.
+Do NOT wrap the functions in a class. Define them at the module level.

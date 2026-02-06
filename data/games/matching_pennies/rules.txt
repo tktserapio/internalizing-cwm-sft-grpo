@@ -1,0 +1,42 @@
+## Matching Pennies Game Rules
+
+Matching Pennies is a classic two-player zero-sum game from game theory. It is a simultaneous-move game where players choose their actions without knowing what the other player will do.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 and Player 1)
+- **Actions:** Each player secretly chooses either "heads" or "tails"
+- **Simultaneous Play:** Both players reveal their choices at the same time
+
+### 2. Game Flow
+1. **CHANCE node** determines the order of secret selection (both players commit without seeing the other's choice)
+2. **Player 0** secretly commits to either "heads" or "tails"
+3. **Player 1** secretly commits to either "heads" or "tails" (without seeing P0's choice)
+4. **Reveal:** Both choices are revealed simultaneously
+
+### 3. Winning Conditions
+- **Player 0 wins** if both players choose the same side (both heads or both tails)
+- **Player 1 wins** if the players choose different sides
+
+### 4. Payoffs
+- Winner receives +1.0, loser receives -1.0
+- This is a zero-sum game: payoffs always sum to zero
+
+### 5. Move Notation
+- **H** for Heads
+- **T** for Tails
+
+### 6. Strategic Notes
+- This game has no pure strategy Nash equilibrium
+- The mixed strategy Nash equilibrium is for each player to randomize 50-50
+- Player 0 (the "matcher") wants outcomes to match
+- Player 1 (the "mismatcher") wants outcomes to differ
+
+### Example Trajectory
+This shows the expected game state at each step. The game uses sequential commitment with hidden information to model simultaneous play.
+
+Step 0: current_player=0, legal_actions=["H", "T"], rewards=[0.0, 0.0]
+  -> Action: "H"  # P0 secretly chooses Heads
+Step 1: current_player=1, legal_actions=["H", "T"], rewards=[0.0, 0.0]
+  -> Action: "T"  # P1 secretly chooses Tails (doesn't see P0's choice)
+Step 2 (TERMINAL): current_player=-4, legal_actions=[], rewards=[-1.0, 1.0]
+  # Mismatch: P1 wins

@@ -1,0 +1,113 @@
+## Texas Hold'em Poker Game Rules
+
+Texas Hold'em is a popular poker variant that involves strategic betting and card play. It combines private and community cards to form the best possible five-card hand. Below are the comprehensive rules for playing Texas Hold'em Poker.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 players.
+- **Deck:** Standard 52-card deck without jokers.
+- **Blinds (Heads-Up Rules):**
+  - **Dealer Button:** The player with the button is the **Small Blind (SB)**.
+  - **Opponent:** The other player is the **Big Blind (BB)**.
+  - *Note: This is the standard rule for 2-player (Heads-Up) games.*
+- **Turn Order:**
+  - **Pre-Flop:** The Small Blind (Dealer) acts first.
+  - **Post-Flop:** The Big Blind (Non-Dealer) acts first.
+
+### 2. Game Structure
+Texas Hold'em consists of four betting rounds: Pre-Flop, Flop, Turn, and River.
+
+#### 2.1. Pre-Flop
+- **The Deal:** Each player is dealt two private cards (hole cards) face down.
+- **First Betting Round:**
+  - Starts with the **Small Blind** (Dealer).
+  - **Actions:** 
+    - **Fold (F):** Forfeit the hand.
+    - **Call (C):** Match the current highest bet (initially the Big Blind).
+    - **Raise (R):** Increase the current bet.
+
+#### 2.2. Flop
+- **Community Cards:** Three community cards are dealt face up.
+- **Second Betting Round:**
+  - Starts with the **first active player left of the dealer button** (The Big Blind).
+  - **Actions:** Same as Pre-Flop.
+
+#### 2.3. Turn
+- **Community Card:** One additional community card is dealt face up.
+- **Third Betting Round:**
+  - Starts with the first active player left of the dealer button.
+  - **Actions:** Same as Pre-Flop.
+
+#### 2.4. River
+- **Community Card:** One final community card is dealt face up.
+- **Fourth Betting Round:**
+  - Starts with the first active player left of the dealer button.
+  - **Actions:** Same as Pre-Flop.
+
+### 3. Showdown
+- **If more than one player remains after the final betting round:**
+  - Players reveal their hole cards.
+  - The best five-card hand is determined using any combination of the five community cards and the player's two hole cards.
+- **Hand Rankings (from highest to lowest):**
+  - **Royal Flush:** A, K, Q, J, 10, all of the same suit.
+  - **Straight Flush:** Five consecutive cards of the same suit.
+  - **Four of a Kind:** Four cards of the same rank.
+  - **Full House:** Three of a kind plus a pair.
+  - **Flush:** Five cards of the same suit.
+  - **Straight:** Five consecutive cards of different suits.
+  - **Three of a Kind:** Three cards of the same rank.
+  - **Two Pair:** Two different pairs.
+  - **One Pair:** Two cards of the same rank.
+  - **High Card:** Highest card when no other hand is made.
+
+### 4. Winning
+- A player wins the pot by having the best hand at showdown or by all other players folding.
+
+### 5. Move Notation
+- Moves can be represented using the following notation:
+  - **F** for Fold
+  - **C** for Call
+  - **R** for Raise (followed by the amount raised, e.g., R50 for raising 50 units)
+  - **K** for Check (if no bet has been made)
+
+### 6. Observation Space
+- **Public Information:**
+  - Community cards (Flop, Turn, River).
+  - Total pot size.
+  - Current bet amounts.
+  - Actions taken by each player.
+- **Private Information:**
+  - Each player's hole cards.
+
+### 7. Example Trajectory
+This shows the expected game state at each step. Assume Player 0 is the Dealer (SB) and Player 1 is the Big Blind (BB).
+
+Step 0 (CHANCE): current_player=-1, legal_actions=["deal"], rewards=[0.0, 0.0]
+  -> Action: "deal"  # Cards are dealt to players
+Step 1: current_player=0 (SB/Dealer), legal_actions=["F", "C", "R"], rewards=[0.0, 0.0]
+  -> Action: "C"   # P0 calls the big blind
+Step 2: current_player=1 (BB), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
+  -> Action: "K"   # P1 checks (big blind option)
+Step 4 (CHANCE): current_player=-1, legal_actions=["flop"], rewards=[0.0, 0.0]
+  -> Action: "flop"  # Flop is dealt
+Step 5: current_player=1 (BB - First post-flop), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
+  -> Action: "K"   # P1 checks
+Step 6: current_player=0 (SB/Dealer), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
+  -> Action: "R50" # P0 bets 50 units
+Step 7: current_player=1 (BB), legal_actions=["F", "C", "R"], rewards=[0.0, 0.0]
+  -> Action: "C"   # P1 calls
+Step 8 (CHANCE): current_player=-1, legal_actions=["turn"], rewards=[0.0, 0.0]
+  -> Action: "turn"  # Turn is dealt
+Step 9: current_player=1 (BB), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
+  -> Action: "K"   # P1 checks
+Step 10: current_player=1, legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
+  -> Action: "K"   # P1 checks
+Step 11 (CHANCE): current_player=-1, legal_actions=["river"], rewards=[0.0, 0.0]
+  -> Action: "river"  # River is dealt
+Step 12: current_player=0, legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
+  -> Action: "R200" # P0 bets 200 units
+Step 13: current_player=1, legal_actions=["F", "C"], rewards=[0.0, 0.0]
+  -> Action: "C"   # P1 calls
+Step 14 (TERMINAL): current_player=-4, legal_actions=[], rewards=[500.0, -500.0]
+  # Showdown: P0 wins with a higher hand
+
+This detailed rule set provides a comprehensive guide for an AI model to learn and play Texas Hold'em Poker correctly.

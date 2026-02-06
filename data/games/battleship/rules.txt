@@ -1,0 +1,56 @@
+## Battleship Game Rules
+
+Battleship is a two-player guessing game where each player tries to sink the opponent's fleet by calling out grid coordinates.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 and Player 1)
+- **Board Size:** 4x4 grid for each player (simplified from classic 10x10)
+- **Ships:** Each player has 2 ships:
+  - 1 ship of size 2 (occupies 2 adjacent cells)
+  - 1 ship of size 1 (occupies 1 cell)
+- **Total Cells:** 3 cells per player contain ships
+
+### 2. Game Flow
+1. **CHANCE node** places ships randomly for both players (hidden from opponent)
+2. Players alternate turns calling out coordinates to attack
+3. After each attack, the result is announced: "hit" or "miss"
+4. Game ends when one player sinks all opponent ships
+
+### 3. Actions
+- **Attack:** Call a coordinate to fire at, e.g., "fire_1_2" (row 1, column 2)
+- Coordinates are 0-indexed (0-3 for each dimension)
+- Cannot fire at the same cell twice
+
+### 4. Ship Placement
+- Ships are placed horizontally or vertically
+- Ships cannot overlap
+- CHANCE action encodes both players' ship positions
+
+### 5. Winning Conditions
+- First player to sink all opponent ships wins
+- Winner gets +1.0, loser gets -1.0
+
+### 6. Move Notation
+- **CHANCE action:** Encodes ship placements (internal format)
+- **fire_R_C:** Fire at row R, column C
+
+### 7. Information Structure
+- Each player knows:
+  - Their own ship positions
+  - All shots they've fired and results (hit/miss)
+  - All shots opponent has fired at them and results
+- Each player does NOT know:
+  - Opponent's ship positions (until hit)
+
+### Example Trajectory
+This shows a simplified game on a 4x4 board.
+
+Step 0 (CHANCE): current_player=-1, legal_actions=[...], rewards=[0.0, 0.0]
+  -> Action: "setup_..."  # Ships placed for both players
+Step 1: current_player=0, legal_actions=["fire_0_0", "fire_0_1", ..., "fire_3_3"], rewards=[0.0, 0.0]
+  -> Action: "fire_1_1"  # P0 fires at (1,1)
+Step 2: current_player=1, legal_actions=["fire_0_0", "fire_0_1", ..., "fire_3_3"], rewards=[0.0, 0.0]
+  -> Action: "fire_0_0"  # P1 fires at (0,0)
+...
+Step N (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
+  # P0 sinks all P1's ships first

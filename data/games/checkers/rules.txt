@@ -1,0 +1,49 @@
+## Checkers (Draughts) Game Rules
+
+Checkers is a classic two-player strategy board game played on an 8×8 board. This implementation uses standard American/English Checkers rules.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 uses 'r' for red, Player 1 uses 'b' for black)
+- **Board:** 8×8 grid, only dark squares are used
+- **Pieces:** Each player starts with 12 pieces on their three nearest rows
+- **Starting Position:** Pieces occupy dark squares in rows 0-2 (black) and rows 5-7 (red)
+
+### 2. Piece Types
+- **Regular pieces:** Can only move forward diagonally
+- **Kings:** Promoted when reaching the opposite end; can move diagonally in any direction
+- Notation: lowercase (r, b) for regular pieces, uppercase (R, B) for kings
+
+### 3. Movement Rules
+- **Simple move:** Move diagonally forward to an adjacent empty square
+- **Jump (capture):** Jump over an opponent's piece to capture it; piece is removed
+- **Mandatory capture:** If a capture is available, you MUST take it
+- **Multiple jumps:** If after a jump another capture is available with the same piece, you must continue jumping
+
+### 4. Winning Conditions
+- Capture all opponent pieces, OR
+- Block all opponent pieces so they cannot move
+- Winner gets +1.0, loser gets -1.0
+- Draw if no captures for 40 moves (simplified rule)
+
+### 5. Move Notation
+- **Simple move:** "move_r1c1_r2c2" (from row1,col1 to row2,col2)
+- **Jump:** "jump_r1c1_r2c2" (jump from r1c1 to r2c2, capturing the piece between)
+- **Multi-jump:** "jump_r1c1_r2c2_r3c3" (chain of jumps)
+
+### 6. Board Orientation
+- Row 0 is at the top (black's home)
+- Row 7 is at the bottom (red's home)
+- Player 0 (red) moves up, Player 1 (black) moves down
+
+### Example Trajectory
+This shows the beginning of a checkers game.
+
+Step 0: current_player=0, legal_actions=["move_5_0_4_1", "move_5_2_4_1", "move_5_2_4_3", ...], rewards=[0.0, 0.0]
+  -> Action: "move_5_2_4_3"  # Red moves piece from (5,2) to (4,3)
+Step 1: current_player=1, legal_actions=["move_2_1_3_0", "move_2_1_3_2", ...], rewards=[0.0, 0.0]
+  -> Action: "move_2_3_3_4"  # Black moves piece from (2,3) to (3,4)
+Step 2: current_player=0, legal_actions=[...], rewards=[0.0, 0.0]
+  -> Action: "jump_4_3_2_5"  # Red jumps and captures black piece at (3,4)
+...
+Step N (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
+  # Red captures all black pieces

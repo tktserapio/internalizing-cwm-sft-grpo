@@ -1,0 +1,45 @@
+## Prisoner's Dilemma Game Rules
+
+The Prisoner's Dilemma is a classic game theory scenario that demonstrates why two rational individuals might not cooperate, even when it appears in their best interest to do so.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 and Player 1)
+- **Actions:** Each player secretly chooses either "cooperate" or "defect"
+- **Simultaneous Play:** Both players reveal their choices at the same time
+
+### 2. Game Flow
+1. **Player 0** secretly commits to either "C" (cooperate) or "D" (defect)
+2. **Player 1** secretly commits to either "C" or "D" (without seeing P0's choice)
+3. **Reveal:** Both choices are revealed simultaneously and payoffs are computed
+
+### 3. Payoff Matrix
+The payoffs are based on the classic Prisoner's Dilemma structure:
+
+|           | P1: C      | P1: D      |
+|-----------|------------|------------|
+| P0: C     | (3, 3)     | (0, 5)     |
+| P0: D     | (5, 0)     | (1, 1)     |
+
+- **Mutual Cooperation (C, C):** Both get 3 (reward for cooperation)
+- **Mutual Defection (D, D):** Both get 1 (punishment for mutual defection)
+- **Temptation (D vs C):** Defector gets 5, cooperator gets 0
+
+### 4. Strategic Notes
+- The dominant strategy for each player is to defect
+- However, mutual cooperation yields a better outcome than mutual defection
+- This creates the fundamental dilemma: individual rationality leads to a socially suboptimal outcome
+- The Nash equilibrium is (D, D) with payoffs (1, 1)
+
+### 5. Move Notation
+- **C** for Cooperate
+- **D** for Defect
+
+### Example Trajectory
+This shows the expected game state at each step. The game uses sequential commitment with hidden information to model simultaneous play.
+
+Step 0: current_player=0, legal_actions=["C", "D"], rewards=[0.0, 0.0]
+  -> Action: "C"  # P0 secretly chooses Cooperate
+Step 1: current_player=1, legal_actions=["C", "D"], rewards=[0.0, 0.0]
+  -> Action: "D"  # P1 secretly chooses Defect (doesn't see P0's choice)
+Step 2 (TERMINAL): current_player=-4, legal_actions=[], rewards=[0.0, 5.0]
+  # P0 cooperated, P1 defected: P1 gets temptation payoff

@@ -1,0 +1,50 @@
+## Negotiation Game Rules (Lewis et al. Style)
+
+This is a simplified negotiation game inspired by Lewis et al.'s "Deal or No Deal" paper. Two players negotiate over how to divide a pool of items, where each player has private valuations.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 and Player 1)
+- **Items:** 3 item types: books (B), hats (H), balls (L)
+- **Quantities:** 2 of each item type (6 items total)
+- **Private Values:** Each player has private values for each item type (0-3 points each)
+- **Goal:** Agree on a division that maximizes your points
+
+### 2. Game Flow
+1. **CHANCE node** assigns private valuations to each player
+2. Players take turns making proposals or responding
+3. A player can: **propose** a division, **accept** the current proposal, or **reject** and walk away
+4. Game ends when a proposal is accepted or a player walks away
+
+### 3. Actions
+- **propose_X_Y_Z:** Propose that YOU get X books, Y hats, Z balls (opponent gets remainder)
+- **accept:** Accept the current proposal on the table
+- **reject:** Reject and end negotiation with no deal
+
+### 4. Payoffs
+- **If proposal accepted:** Each player gets points = sum(items received × item value)
+- **If rejected (no deal):** Both players get 0 points
+- Values are private: P0 doesn't know P1's values and vice versa
+
+### 5. Move Notation
+- **CHANCE action:** "v0_A_B_C_v1_D_E_F" where A,B,C are P0's values for books,hats,balls and D,E,F are P1's values
+- **propose_X_Y_Z:** Propose you take X books, Y hats, Z balls
+- **accept:** Accept current proposal
+- **reject:** End with no deal
+
+### 6. Strategic Notes
+- Optimal negotiation requires inferring opponent's values from their proposals
+- Zero-sum thinking fails: creative deals can create value for both
+- Deadlines and walk-away threats affect bargaining power
+
+### Example Trajectory
+This shows a simple negotiation where P0 proposes and P1 accepts.
+
+Step 0 (CHANCE): current_player=-1, legal_actions=["v0_3_1_0_v1_0_2_2", ...], rewards=[0.0, 0.0]
+  -> Action: "v0_3_1_0_v1_0_2_2"  # P0 values books=3,hats=1,balls=0; P1 values books=0,hats=2,balls=2
+Step 1: current_player=0, legal_actions=["propose_0_0_0", "propose_0_0_1", ..., "propose_2_2_2", "reject"], rewards=[0.0, 0.0]
+  -> Action: "propose_2_0_0"  # P0 proposes: I take 2 books, 0 hats, 0 balls
+Step 2: current_player=1, legal_actions=["accept", "reject", "propose_0_0_0", ...], rewards=[0.0, 0.0]
+  -> Action: "accept"  # P1 accepts (P1 gets 0 books, 2 hats, 2 balls)
+Step 3 (TERMINAL): current_player=-4, legal_actions=[], rewards=[6.0, 8.0]
+  # P0: 2×3 + 0×1 + 0×0 = 6 points
+  # P1: 0×0 + 2×2 + 2×2 = 8 points

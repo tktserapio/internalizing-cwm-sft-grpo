@@ -1,0 +1,33 @@
+Objective: The goal is to be the first player to occupy the Center Square (2, 2).
+
+Setup:
+
+Board: A 5x5 grid with coordinates (row, col) from (0,0) to (4,4).
+
+Player 0 (Blue): Starts with two units at (0, 0) and (0, 4).
+
+Player 1 (Red): Starts with two units at (4, 0) and (4, 4).
+
+Movement:
+
+Players take turns moving one of their units.
+
+A unit can move one step in any direction (horizontally, vertically, or diagonally) to an adjacent empty square.
+
+No Captures: You cannot move onto a square occupied by any unit (friend or foe).
+
+The "Stun" Mechanic:
+
+If a player moves a unit to a square adjacent (orthogonally or diagonally) to an opponent's unit, the opponent's unit becomes Stunned.
+
+A Stunned unit cannot move on the owner's next turn.
+
+Stun status lasts for exactly one turn. (It clears after the opponent's turn passes).
+
+If a player has no legal moves (e.g., all units are stunned or blocked), they must Pass.
+
+Winning:
+
+Victory: The first player to move a unit onto the Center Square (2, 2) wins instantly.
+
+Draw: If 50 turns pass without a winner, the game is a draw.

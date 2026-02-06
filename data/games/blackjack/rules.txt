@@ -1,0 +1,109 @@
+## Blackjack Game Rules
+
+Blackjack, also known as 21, is a popular card game played in casinos worldwide. The objective is to have a hand value closer to 21 than the dealer's hand without exceeding 21. Below are the comprehensive rules for playing standard Blackjack.
+
+### 1. Setup & Preliminaries
+- **Players:** 1 player (player 0) against a dealer (player 1).
+- **Deck:** Standard 52-card deck.
+- **Card Values:**
+  - Number cards (2-10) are worth their face value.
+  - Face cards (Jack, Queen, King) are worth 10.
+  - Aces can be worth 1 or 11, whichever is more favorable to the hand.
+
+### 2. Objective
+- The goal is to have a hand value as close to 21 as possible without exceeding it (busting).
+- Beat the dealer's hand by having a higher total without busting.
+
+### 3. Player IDs
+- **-1:** Chance node (deals cards)
+- **0:** Player
+- **1:** Dealer
+- **-4:** Terminal (game over)
+
+### 4. Game Flow & Phases
+
+#### Initial Deal (4 Chance Nodes)
+Cards are dealt one at a time via chance nodes. Each chance action has format `deal:<card>` where card is rank+suit (e.g., "deal:Ah", "deal:Ts").
+
+1. **Phase "deal_p1":** Chance deals first card to player
+2. **Phase "deal_d1":** Chance deals first card to dealer (upcard)
+3. **Phase "deal_p2":** Chance deals second card to player
+4. **Phase "deal_d2":** Chance deals second card to dealer (hole card, hidden from player)
+
+After deal_d2, current_player becomes 0 (player) and phase becomes "play".
+
+#### Player Turn (current_player=0, phase="play")
+Player can perform the following actions:
+- **Hit (H):** Request another card. Sets phase to "p_hit" and current_player to -1 (chance).
+- **Stand (S):** Keep current hand. If more hands to play (from split), move to next hand. Otherwise, dealer's turn.
+- **Double Down (D):** Double the bet, take exactly one more card (via chance node), then must stand.
+- **Split (P):** If first two cards have same rank/value, split into two hands. Requires additional bet.
+- **Surrender (R):** Forfeit half the bet and end immediately. Only available with 2 cards.
+
+When player has 21, only "S" (stand) is legal.
+
+#### Player Hit (current_player=-1, phase="p_hit")
+Chance node deals a card to player. If player busts (>21), game ends immediately. Otherwise, returns to player turn (phase="play").
+
+#### Dealer Turn (current_player=1)
+Dealer must:
+- **Hit (H):** If hand value < 17
+- **Stand (S):** If hand value >= 17
+
+When dealer hits, phase becomes "d_hit" and current_player becomes -1 (chance).
+
+#### Dealer Hit (current_player=-1, phase="d_hit")
+Chance node deals a card to dealer, then returns to dealer turn.
+
+#### Game End
+When dealer stands, game resolves and current_player becomes -4.
+
+### 5. Winning Conditions
+- **Blackjack:** An Ace and a 10-value card dealt initially pays 1.5:1.
+- **Win:** Player's hand value is higher than dealer's without busting.
+- **Loss:** Player busts, or dealer's hand value is higher without busting.
+- **Push:** Equal hand values, no win or loss.
+
+### 6. Action Notation
+- **Chance actions:** `deal:<card>` where card is rank+suit (e.g., "deal:Ah", "deal:7c")
+- **Player actions:** H, S, D, P, R
+- **Dealer actions:** H, S
+
+### Example Trajectory
+This shows the expected game state at each step with explicit chance nodes for each card.
+
+Step 0 (CHANCE - deal_p1): current_player=-1, phase="deal_p1"
+  legal_actions=["deal:2s", "deal:2h", ..., "deal:Ac"]  # All cards in deck
+  -> Action: "deal:Ts"  # Deal 10 of spades to player
+
+Step 1 (CHANCE - deal_d1): current_player=-1, phase="deal_d1"
+  legal_actions=["deal:2s", "deal:2h", ..., "deal:Ac"]  # Remaining cards
+  -> Action: "deal:7h"  # Deal 7 of hearts to dealer (upcard)
+
+Step 2 (CHANCE - deal_p2): current_player=-1, phase="deal_p2"
+  -> Action: "deal:5d"  # Deal 5 of diamonds to player (player has Ts, 5d = 15)
+
+Step 3 (CHANCE - deal_d2): current_player=-1, phase="deal_d2"
+  -> Action: "deal:9c"  # Deal 9 of clubs to dealer (hole card, hidden)
+
+Step 4 (PLAYER): current_player=0, phase="play"
+  legal_actions=["H", "S", "D", "R", "P"]
+  -> Action: "H"  # Player hits
+
+Step 5 (CHANCE - p_hit): current_player=-1, phase="p_hit"
+  legal_actions=["deal:2s", ...]  # Remaining cards
+  -> Action: "deal:4h"  # Player receives 4h (now has 19)
+
+Step 6 (PLAYER): current_player=0, phase="play"
+  legal_actions=["H", "S"]  # No more D/R/P after initial 2 cards
+  -> Action: "S"  # Player stands with 19
+
+Step 7 (DEALER): current_player=1, phase="play"
+  legal_actions=["H"]  # Dealer has 16, must hit
+  -> Action: "H"
+
+Step 8 (CHANCE - d_hit): current_player=-1, phase="d_hit"
+  -> Action: "deal:Kd"  # Dealer receives Kd (now has 26, busts)
+
+Step 9 (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
+  # Player wins because dealer busted.

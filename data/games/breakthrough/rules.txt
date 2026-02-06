@@ -1,0 +1,83 @@
+## Breakthrough Game Rules
+
+Breakthrough is a two-player abstract strategy board game that emphasizes tactical movement and strategic positioning. The objective is to advance one of your pieces to the opponent's back row. Below are the comprehensive rules for playing Breakthrough.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 1 (P1) and Player 2 (P2)).
+- **Board:** 8x8 grid (standard chess board).
+- **Pieces:** Each player has 16 pieces, initially occupying the first two rows closest to them.
+  - **P1's Pieces:** Represented by 'W' (White), start on rows 1 and 2.
+  - **P2's Pieces:** Represented by 'B' (Black), start on rows 7 and 8.
+
+### 2. Objective
+- The goal is to move one of your pieces to the opponent's back row (P1 to row 8, P2 to row 1).
+
+### 3. Movement Rules
+- **Basic Movement:** Pieces move one square forward diagonally or straight.
+  - **Forward Diagonal Move:** A piece can move to an adjacent diagonal square in the forward direction (P1 moves towards row 8, P2 moves towards row 1).
+  - **Forward Straight Move:** A piece can move directly forward to the square immediately in front of it.
+  
+- **Capture:** A piece can capture an opponent's piece by moving to an occupied diagonal square in the forward direction. Captures are mandatory if possible.
+
+### 4. Game Play
+- **Turn Order:** P1 moves first, followed by P2. Players alternate turns.
+- **Move Execution:** On each turn, a player must move one of their pieces according to the movement rules.
+- **Winning the Game:** The game is won by the first player to move a piece to the opponent's back row.
+
+### 5. Move Notation
+- Moves are denoted using standard chess-like notation, specifying the starting and ending positions of the piece.
+  - **Format:** `e2-e3` where `e2` is the starting square and `e3` is the ending square.
+  - **Capture Notation:** Use `x` to indicate a capture, e.g., `e2xd3`.
+
+### 6. Example Game Trajectory
+Below is an example of a game trajectory illustrating the sequence of moves.
+
+1. **Initial Setup:**
+   ```
+   8  B B B B B B B B
+   7  B B B B B B B B
+   6  . . . . . . . .
+   5  . . . . . . . .
+   4  . . . . . . . .
+   3  . . . . . . . .
+   2  W W W W W W W W
+   1  W W W W W W W W
+      a b c d e f g h
+   ```
+
+2. **Move Sequence:**
+   - **P1:** `e2-e3`
+   - **P2:** `d7-d6`
+   - **P1:** `f2-f3`
+   - **P2:** `e7xe3` (capture)
+   - **P1:** `d2xe3` (capture)
+   - **P2:** `f7-f6`
+   - **P1:** `g2-g3`
+   - **P2:** `h7-h6`
+   - **P1:** `h2-h3`
+   - **P2:** `g7-g6`
+   - **P1:** `e3-e4`
+   - **P2:** `f6xe5` (capture)
+   - **P1:** `d1xe5` (capture)
+   - **P2:** `c7-c6`
+   - **P1:** `f3-f4`
+   - **P2:** `b7-b6`
+   - **P1:** `g3-g4`
+   - **P2:** `a7-a6`
+   - **P1:** `h3-h4`
+   - **P2:** `c6-c5`
+   - **P1:** `g4-g5`
+   - **P2:** `b6-b5`
+   - **P1:** `h4-h5`
+   - **P2:** `a6-a5`
+   - **P1:** `h5-h6`
+   - **P2:** `c5-c4`
+   - **P1:** `h6-h7`
+   - **P2:** `b5-b4`
+   - **P1:** `h7-h8` (P1 wins by reaching the back row)
+
+### 7. Additional Considerations
+- **Stalemate:** If a player cannot make a legal move, the game ends in a stalemate, and the opponent wins.
+- **Draws:** There are no draws in Breakthrough; the game continues until one player wins.
+
+These rules provide a comprehensive guide to playing Breakthrough, ensuring clarity for both human players and AI models learning the game.

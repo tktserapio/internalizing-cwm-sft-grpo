@@ -1,0 +1,47 @@
+**Hand of War** is a strategic card game where choosing your cards
+wisely is key to victory. You'll manage a hand of cards, adding a layer of
+tactical decision-making to every round as you aim to capture all of your opponent's
+cards.
+**Objective:**
+* The goal of Hand of War is to capture as many of your opponent's cards.
+**Setup:**
+* **Shuffle and Deal:** Thoroughly shuffle the deck. Deal the entire deck
+evenly between two players, face down.
+* **Form Hands:** Each player draws the top three cards from their draw pile.
+**Gameplay (The "Battle"):**
+* **Choose a Card:** Simultaneously, both players select one card from their
+hand and place it face down.
+* **Reveal and Compare:** Both players flip their chosen cards.
+* **Higher Card Wins:** The player with the higher-ranking card wins the
+battle and takes both cards, placing them at the bottom of their win pile.
+* **Card Ranking:** Ace (High), K, Q, J.
+* **Draw New Cards:** After the battle, players draw from their draw pile to
+replenish their hand to three cards.
+**"Showdown" (When Cards Tie):**
+* **Declaration:** If cards are of the same rank, a "Showdown" occurs.
+* **Face-Down Cards:** Each player places 1 card from their draw pile face
+down.
+* **Choose Battle Card:** Players choose one card from their hand and place it
+face up.
+* **Determine Showdown Winner:** Higher battle card wins all cards in the
+Showdown.
+* **Another Tie:** Repeat Showdown process (burn 1, choose card).
+* **Draw After Showdown:** Players replenish their hand to three cards.
+**Game End Conditions:**
+The game can end in one of two ways:
+1. **Winning by Capturing All Cards:** The game ends immediately if one player
+possesses all 16 cards. That player is the winner.
+2. **Winning by Win Pile Count (Draw Pile Depleted):** If a player's draw pile
+becomes empty and they are required to perform an action they cannot complete
+(such as drawing a card to replenish their hand after a battle, or burning a
+card during a Showdown), the game ends immediately. In this scenario:
+* The number of cards in each player's win pile is counted.
+* The player with more cards in their win pile wins the game.
+* If both players have an equal number of cards in their win piles, the
+game results in a draw.
+* Note: The win pile is never reshuffled into the draw pile during play.
+**Notation**
+Player 0 always moves first, followed by player 1. Thus if the previous move was
+a player 0 move, then the next move is a player 1 move.
+For convenience, a list of played cards is provided in PubliclyRevealedCards,
+but not playable anymore.

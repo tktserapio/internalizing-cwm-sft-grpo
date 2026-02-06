@@ -1,0 +1,62 @@
+## Liar's Dice Game Rules
+
+Liar's Dice is a classic dice game of bluffing and deception. It involves players making bids on the number of dice showing a certain face, with the option to challenge the previous bid if they believe it to be false. Below are the comprehensive rules for playing Liar's Dice.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 1 (P1), Player 2 (P2)).
+- **Dice:** Each player starts with 5 six-sided dice.
+- **Cups:** Each player has a cup to conceal their dice.
+- **Initial Roll:** At the beginning of each round, all players roll their dice under their cups, keeping the result hidden from other players.
+
+### 2. Game Structure
+- **Rounds:** The game is played in rounds, with each round consisting of a series of bids and challenges.
+- **Starting Player:** The first player to bid is chosen randomly or by agreement.
+
+### 3. Bidding
+- **Bid Format:** A bid is made in the format "X-Y" where X is the quantity of dice and Y is the face value (e.g., "3-4" means three dice showing a face value of four).
+- **Valid Bids:** A bid must either:
+  - Increase the quantity (X) of the previous bid.
+  - If the quantity remains the same, increase the face value (Y).
+- **Wild Ones:** Ones (1s) are wild and count as any face value when determining the validity of a bid. However, a bid specifically on ones (e.g., "2-1") is not wild.
+
+### 4. Challenging
+- **Challenge Action:** A player can challenge the previous bid if they believe it to be false.
+- **Challenge Resolution:** When a challenge is made:
+  - All players reveal their dice.
+  - Count the total number of dice showing the face value of the last bid, including ones if they are wild.
+  - If the bid is valid (i.e., the total is equal to or greater than the bid), the challenger loses one die.
+  - If the bid is invalid, the player who made the bid loses one die.
+
+### 5. Ending a Round
+- **Round Termination:** A round ends when a challenge is resolved.
+- **Next Round:** The player who lost a die starts the next round.
+
+### 6. Winning the Game
+- **Elimination:** A player is eliminated when they lose all their dice.
+- **Victory:** The last player remaining with dice is the winner.
+
+### 7. Observation Space
+- **Public Information:** The current bid and the number of dice each player has.
+- **Private Information:** Each player's dice results.
+
+### 8. Move Notation
+- **Bid:** "X-Y" where X is the quantity and Y is the face value.
+- **Challenge:** "C" to indicate a challenge of the previous bid.
+
+### Example Trajectory
+This shows the expected game state at each step. Note: The game starts with a CHANCE node (current_player=-1) that rolls dice. The roll action format is "ABCDE" where A, B, C, D, and E are the dice results for a player.
+
+Step 0 (CHANCE): current_player=-1, legal_actions=["11111", "12345", ..., "66666"], rewards=[0.0, 0.0, ..., 0.0]
+  -> Action: "12345"  # P1 rolls 1, 2, 3, 4, 5
+Step 1 (CHANCE): current_player=-1, legal_actions=["11111", "12345", ..., "66666"], rewards=[0.0, 0.0, ..., 0.0]
+  -> Action: "23456"  # P2 rolls 2, 3, 4, 5, 6
+Step 2: current_player=0, legal_actions=["1-1", "1-2", ..., "5-6"], rewards=[0.0, 0.0, ..., 0.0]
+  -> Action: "2-3"   # P1 bids two threes
+Step 3: current_player=1, legal_actions=["2-4", "2-5", ..., "3-6", "C"], rewards=[0.0, 0.0, ..., 0.0]
+  -> Action: "C"     # P2 challenges the bid
+Step 4 (TERMINAL): current_player=-4, legal_actions=[], rewards=[0.0, -1.0, ..., 0.0]
+  # Reveal: P1 has 1, 2, 3, 4, 5; P2 has 2, 3, 4, 5, 6
+  # Total threes (including wild ones): 3
+  # Bid was valid, P2 loses a die
+
+This example demonstrates a simple round where P1 makes a bid, P2 challenges, and the dice are revealed to resolve the challenge.

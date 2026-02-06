@@ -1,0 +1,123 @@
+# The Game of Gin Rummy
+Gin Rummy is a two-player card game played with a standard 52-card deck. The
+primary objective is to form "melds" in your hand, which are either sets of
+three or four cards of the same rank (e.g., 7h 7c 7d) or runs of three or more
+cards of the same suit in sequence (e.g., 4h 5h 6h). Cards not part of any meld
+are referred to as "deadwood." The value of deadwood cards corresponds to their
+rank (Aces are 1 point, face cards are 10, and number cards are their face
+value). The ultimate goal is to minimize the point value of your deadwood.
+A round of Gin Rummy concludes when a player "knocks." A player can choose to
+knock on their turn if the total point value of their deadwood is less than or
+equal to a predetermined "knock card" value. Announcing "gin" is a special type
+of knock where a player has no deadwood at all.
+# Player Hand Information: This section provides details about your own hand.
+Deadwood: This calculates the current point total of the cards in
+your hand that are not part of a valid meld (a set or a run). Minimizing this
+value is the primary goal.
+The Card Grid: This is a visual representation of the cards you currently hold.
+It is organized logically for easy parsing:
+Rows: Each of the four rows corresponds to a suit, in the order of Spades (top
+row), Clubs, Diamonds, and Hearts (bottom row).
+Columns: The columns represent the rank of the cards, ordered from Ace on the
+far left to King on the far right.
+Here are also some example moves:
+Player: 0 Action: Pass
+Player: 1 Action: Draw upcard
+Player: 1 Action: Jc
+Player: 0 Action: 3d
+Player: 1 Action: Draw stock
+# Action Legality is Dictated by Game Phase: Before selecting a move, you must
+first check the phase.
+If the phase is Draw, the only valid actions are Draw upcard or Draw stock.
+If the phase is Discard, the only valid actions are to discard a specific card
+from your hand (e.g., Action: 4c) or to Knock.
+A player cannot discard a card until after they have successfully drawn one.
+# Special Case: The First Turn of the Round
+The very first turn of a round has a unique rule. The non-dealer has the first
+option on the initial upcard.
+The non-dealer can either take the upcard (Draw upcard) or Pass.
+If the non-dealer passes, the dealer then has the same choice: take the upcard
+or pass.
+If both players pass on the initial upcard, the non-dealer must then start their
+turn by drawing from the stock pile. After this initial sequence, play continues
+with the standard draw/discard phases.
+# Knocking:
+When a player knocks in Gin Rummy, the round immediately ends and a specific
+sequence of scoring, known as the "layoff," begins. Here is a detailed
+breakdown of what happens.
+1. The Knock and Laying Down Hands
+First, the player who is knocking (the "knocker") lays their hand face up on the
+table, organising their cards into melds (sets and runs) and separating their
+unmelded cards, known as "deadwood."
+What the Player Needs to Do After Knocking
+After sending Action: Knock, the player must follow a strict, multi-step process
+to lay down their hand for scoring.
+Step 1: Declare Your Melds
+The player must now explicitly declare their melds to the game, one by one.
+For exampple, if the agent's hand contains two valid runs:
+A run of clubs: 7c8c9cTc
+A run of diamonds: 9dTdJdQd
+Correct First Move in the Knock Phase:
+Player: 1 Action: 7c8c9cTc
+or
+Player: 1 Action: 9dTdJdQd
+Step 2: Declare Subsequent Melds
+After the agent declares its first meld, it will receive a new observation. The
+game will still be in Phase: Knock. The Valid actions will now include any
+remaining melds that can be made from the cards left in the hand.
+Note: The value of the knocker's deadwood must be 10 points or less (or the value of
+the designated knock card for that round). Face cards are worth 10 points, aces
+are 1 point, and all other cards are their numerical value.
+2. The Opponent's Turn: Laying Off
+Next, the defending opponent lays down their own hand, also separating their
+melds from their deadwood. Crucially, the opponent then gets the opportunity to
+"lay off" any of their own deadwood cards by adding them to the knocker's melds.
+For example:
+If the knocker has a meld of three Kings (Ks Ks Ks), and the opponent has the
+fourth King (Ks) as deadwood, they can add it to the knocker's set, thus
+eliminating those 10 points from their deadwood count.
+If the knocker has a run of 5h 6h 7h, the opponent can lay off a 4h or an 8h
+to extend the run.
+The knocker is not allowed to lay off any of their deadwood on the opponent's melds.
+3. Scoring the Hand
+After the opponent has finished laying off their cards, both players calculate
+the final value of their remaining deadwood. The scoring for the hand is then
+determined in one of three ways:
+a) A Successful Knock
+If the knocker's deadwood count is lower than the opponent's deadwood count,
+the knocker scores the difference between the two counts.
+Example: The knocker has 7 points of deadwood. The opponent initially has 35
+points, but after laying off a 10-point card, their deadwood is reduced to 25.
+The knocker scores 18 points (25 - 7).
+b) An Undercut
+If the opponent, after laying off their cards, has a deadwood count that is
+equal to or less than the knocker's count, they have "undercut" the knocker. In
+this scenario, the opponent scores the difference in points (if any) plus a
+bonus, which is typically 25 points.
+Example: The knocker has 8 points. The opponent has 6 points after layoffs. The
+opponent scores 2 points (8 - 6) plus a 25-point bonus, for a total of 27
+points.
+c) Going Gin
+If the knocker has a deadwood count of zero, this is called "going gin." The
+knocker receives a bonus (typically 25 points) in addition to the full value of
+the opponent's entire deadwood count. When a player goes gin, the opponent is
+not allowed to lay off any of their cards.
+Example: A player goes gin. Their opponent has 42 points of deadwood. The
+ginning player scores 42 points plus a 25-point gin bonus, for a total of 67
+points.
+What if the Stock Pile Runs Out?
+If the stock pile is reduced to its last two cards and the player who drew the
+third to last card discards without knocking, the hand is declared a draw. No
+points are awarded to either player, and the deal passes to the next player for
+a new round.
+# If you see Phase: Wall in an observation, it means:
+The Stock Pile is Exhausted: The round has concluded because there are no more
+cards to be drawn from the stock.
+No Player Has Knocked: Neither you nor your opponent were able to knock by the
+time the last card was drawn.
+The Hand is a Draw: No points are awarded to either player for this round. The
+hand is over.
+No Action is Required: The game is in a terminal state for the current round.
+The only thing to do is to acknowledge the result and wait for the next hand to
+be dealt. The deal will typically pass to the player who didn't deal the drawn
+hand. Thus `Player: X Action: Pass` must be provided as action.
