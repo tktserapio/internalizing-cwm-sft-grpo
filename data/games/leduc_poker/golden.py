@@ -121,7 +121,7 @@ def get_player_name(player_id: int) -> str:
     return f"Player {player_id + 1}"
 
 def get_rewards(state: State) -> List[float]:
-    if state['current_player'] != -4:
+    if state['private_cards'][0] is None:
         return [0.0, 0.0]
 
     p1_stack, p2_stack = state['stack']

@@ -15,7 +15,7 @@ If the players perform a total of 20 moves without catching each other, the game
 ends in a draw, both players get 0 points. If one catches the other, the winning
 player gets +1 points and the losing player gets -1 points.
 
-Example Run:
+### Example Trajectory:
 # Setup
 # The board is 4x4.
 # Quadrant detailed mapping (row, col):
@@ -114,3 +114,9 @@ Player 1 Action: "Up"
 Game Over.
 Winner: Player 1 (Points: +1.0)
 Loser: Player 0 (Points: -1.0)
+
+## Action String Specification
+Setup phase actions (placing units):
+  - P0 places: format "place_p0:<row>,<col>" e.g. "place_p0:0,0"
+  - P1 places: format "place_p1:<row>,<col>" e.g. "place_p1:3,3"
+Movement phase actions: ["Up", "Down", "Left", "Right", "Stay"]

@@ -201,18 +201,16 @@ def get_player_name(player_id: int) -> str:
     return "Terminal"
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
-    if not state['is_terminal']:
-        return [0.0, 0.0]
-
+    """Returns the rewards per player based on area scoring."""
     # Area scoring
     black_score = _count_territory(state['board'], P0)
     white_score = _count_territory(state['board'], P1) + KOMI
 
     if black_score > white_score:
         return [1.0, -1.0]
-    else:
+    elif white_score > black_score:
         return [-1.0, 1.0]
+    return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions for current state. Empty list if terminal."""

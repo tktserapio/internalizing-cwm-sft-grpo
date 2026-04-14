@@ -28,7 +28,7 @@ from collections import defaultdict, Counter
 def load_prompt_template(is_imperfect: bool) -> str:
     """Load the appropriate prompt template."""
     base = Path(__file__).parent.parent / "data" / "prompts"
-    name = "gemini_imperfect_info.txt" if is_imperfect else "gemini_perfect_info.txt"
+    name = "imperfect_info.txt" if is_imperfect else "perfect_info.txt"
     with open(base / name) as f:
         return f.read()
 
@@ -130,23 +130,26 @@ def generate_with_local_model(
         formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = tokenizer(formatted, return_tensors="pt").to(model.device)
 
-        for gen_idx in range(1, num_generations + 1):
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens,
-                    temperature=0.3,
-                    do_sample=True,
-                    pad_token_id=tokenizer.eos_token_id,
-                )
-            response = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-            code = extract_code(response)
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                temperature=0.3,
+                do_sample=True,
+                num_return_sequences=num_generations,
+                pad_token_id=tokenizer.eos_token_id,
+            )
 
-            # Save to file
-            safe_model = model_name.lower().replace(" ", "_")
-            file_path = output_dir / f"{game}_{safe_model}_gen{gen_idx}.py"
+        prompt_len = inputs.input_ids.shape[1]
+        safe_model = model_name.lower().replace(" ", "_")
+        model_dir = output_dir / safe_model
+        model_dir.mkdir(parents=True, exist_ok=True)
+        for gen_idx, output in enumerate(outputs, 1):
+            response = tokenizer.decode(output[prompt_len:], skip_special_tokens=True)
+            code = extract_code(response)
+            file_path = model_dir / f"{game}_gen{gen_idx}.py"
             file_path.write_text(code)
-            print(f"    Saved: {file_path.name}")
+            print(f"    Saved: {safe_model}/{file_path.name}")
 
     # Cleanup
     print(f"\n  Cleaning up {model_name}...")
@@ -171,14 +174,16 @@ def generate_with_gpt4o(
     for game, prompt in zip(games, prompts):
         print(f"\n  [{game}] Generating {num_generations} response(s)...")
 
+        model_dir = output_dir / "gpt4o"
+        model_dir.mkdir(parents=True, exist_ok=True)
         for gen_idx in range(1, num_generations + 1):
             response = client.generate(prompt, temperature=temperature)
             code = extract_code(response.content)
 
             # Save to file
-            file_path = output_dir / f"{game}_gpt4o_gen{gen_idx}.py"
+            file_path = model_dir / f"{game}_gen{gen_idx}.py"
             file_path.write_text(code)
-            print(f"    Saved: {file_path.name} ({response.usage['total_tokens']} tokens)")
+            print(f"    Saved: gpt4o/{file_path.name} ({response.usage['total_tokens']} tokens)")
 
 
 def get_games_list(game_arg: str) -> list[str]:
@@ -208,9 +213,13 @@ def main():
     parser.add_argument("--sft-grpo-path", type=str,
                         default=os.path.expanduser("~/scratch/experiments/cwm-sft-grpo-v2/final_adapter"))
     parser.add_argument("--base-model", type=str, default="Qwen/Qwen2.5-3B-Instruct")
-    parser.add_argument("--output-dir", type=str, default="evaluation/generated/comparison")
+    parser.add_argument("--output-dir", type=str, default="evaluation/generated/comparison-camera-ready")
     parser.add_argument("--num-generations", type=int, default=3)
     parser.add_argument("--max-new-tokens", type=int, default=4096)
+    parser.add_argument("--model-path", type=str,
+                        help="Path to a single model/adapter to evaluate")
+    parser.add_argument("--model-name", type=str,
+                        help="Name for the model (used as subfolder name). Required with --model-path")
     parser.add_argument("--skip-base", action="store_true")
     parser.add_argument("--skip-sft", action="store_true")
     parser.add_argument("--skip-grpo", action="store_true")
@@ -228,6 +237,26 @@ def main():
     # Build prompts
     print("\nBuilding prompts...")
     prompts = [build_prompt(game) for game in games]
+
+    # Single model mode
+    if args.model_path:
+        if not args.model_name:
+            parser.error("--model-name is required when using --model-path")
+        generate_with_local_model(
+            model_path=args.model_path,
+            prompts=prompts,
+            games=games,
+            model_name=args.model_name,
+            output_dir=output_dir,
+            num_generations=args.num_generations,
+            max_new_tokens=args.max_new_tokens,
+            base_model=args.base_model,
+        )
+        print(f"\n{'='*60}")
+        print(f"Done! Files saved to: {output_dir}/{args.model_name.lower().replace(' ', '_')}")
+        print(f"Run evaluation with: python evaluation/eval_comparison.py --dir {output_dir}")
+        print(f"{'='*60}")
+        return
 
     # Generate from each model
     if not args.skip_base:

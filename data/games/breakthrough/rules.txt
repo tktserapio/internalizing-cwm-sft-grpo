@@ -81,3 +81,8 @@ Below is an example of a game trajectory illustrating the sequence of moves.
 - **Draws:** There are no draws in Breakthrough; the game continues until one player wins.
 
 These rules provide a comprehensive guide to playing Breakthrough, ensuring clarity for both human players and AI models learning the game.
+
+## Action String Specification
+Player actions: format "<src>-<dst>" for a forward move, "<src>x<dst>" for a diagonal capture
+  - Squares use algebraic notation (e.g. e2, d4)
+  - e.g. "e2-e3", "d4-d5", "e4xd5", "c3xb4"

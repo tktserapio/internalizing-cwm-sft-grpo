@@ -96,11 +96,11 @@ def get_player_name(player_id: int) -> str:
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player from their last action."""
-    if not state["terminal"]:
-        return [0.0, 0.0]
-    # Winner gets +1, Loser -1
-    return [1.0 if state["winner"] == 0 else -1.0, 
-            1.0 if state["winner"] == 1 else -1.0]
+    if state["winner"] == 0:
+        return [1.0, -1.0]
+    elif state["winner"] == 1:
+        return [-1.0, 1.0]
+    return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions that can be taken in current state."""
@@ -169,11 +169,12 @@ def resample_history(obs_action_history: List[Tuple[PlayerObservation, Optional[
     if not obs_action_history:
         return []
 
-    # Get the player's dice from any observation (they all have the same dice)
+    # Get the player's dice from the last observation that has all dice rolled
     my_dice = []
-    for obs, _ in obs_action_history:
-        if obs.get("my_dice"):
-            my_dice = list(obs["my_dice"])
+    for obs, _ in reversed(obs_action_history):
+        candidate = obs.get("my_dice", [])
+        if candidate:
+            my_dice = list(candidate)
             break
 
     if not my_dice:
@@ -199,15 +200,20 @@ def resample_history(obs_action_history: List[Tuple[PlayerObservation, Optional[
     # Dice queue is [0, 0, 0, 1, 1, 1] - P0 rolls first, then P1
     generated_actions = []
 
+    num_my_dice = len(my_dice)
+    num_opp_dice = obs_action_history[-1][0].get("num_dice", [NUM_DICE, NUM_DICE])[1 - player_id]
+
     # P0's dice rolls
-    for i in range(NUM_DICE):
+    p0_count = num_my_dice if player_id == 0 else num_opp_dice
+    for i in range(p0_count):
         if player_id == 0:
             generated_actions.append(f"roll:{my_dice[i]}")
         else:
             generated_actions.append(f"roll:{random.randint(1, SIDES)}")
 
     # P1's dice rolls
-    for i in range(NUM_DICE):
+    p1_count = num_my_dice if player_id == 1 else num_opp_dice
+    for i in range(p1_count):
         if player_id == 1:
             generated_actions.append(f"roll:{my_dice[i]}")
         else:

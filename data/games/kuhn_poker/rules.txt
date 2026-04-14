@@ -50,20 +50,20 @@ A player wins the pot in one of two ways:
 
 ### 6. Move Notation
 - Moves can be represented using the following notation:
-  - **F** for Fold
-  - **C** for Call
-  - **R** for Raise (followed by the amount raised, e.g., R1 for raising 1 unit)
+  - **Fold** for Fold
+  - **Call** for Call (also used as Check when there is no outstanding bet)
+  - **Raise** for Raise
 
 ### Example Trajectory
-This shows the expected game state at each step. Note: The game starts with a CHANCE node (current_player=-1) that deals cards. The deal action format is "XY" where X is P0's card and Y is P1's card.
+Step 0 (Chance/Setup): The game begins. The system randomly and secretly deals one card to each player from a limited deck (e.g., Jack, Queen, King). Player 0 receives the King, and Player 1 receives the Jack. Each player can only see their own private card; the opponent's card remains hidden.
+Step 1 (Player 0): It is Player 0's turn to act first. Player 0 chooses to Call (also known as checking in this scenario), passing the action to Player 1 without adding extra chips to the pot.
+Step 2 (Player 1): It is Player 1's turn. Despite holding the lowest-ranked card (Jack), Player 1 chooses to Raise, adding an extra chip to the pot and forcing Player 0 to react.
+Step 3 (Player 0): It is Player 0's turn again. Facing a raise, Player 0's available options are now strictly limited to Fold (forfeiting the hand) or Call (matching the bet). Holding the highest possible card (King), Player 0 chooses to Call.
+Step 4 (Terminal): Because Player 1's raise was called, the betting round concludes and the game proceeds to a showdown. Both players reveal their hidden cards. Player 0 shows the King, and Player 1 shows the Jack. Since a King outranks a Jack, Player 0 wins the hand. The game ends immediately. Player 0 wins the expanded pot for a final payoff of +2.0, and Player 1 receives a final payoff of -2.0. No further actions can be taken.
 
-Step 0 (CHANCE): current_player=-1, legal_actions=["JQ", "JK", "QJ", "QK", "KJ", "KQ"], rewards=[0.0, 0.0]
-  -> Action: "KJ"  # Deal K to P0, J to P1
-Step 1: current_player=0, legal_actions=["F", "C", "R"], rewards=[0.0, 0.0]
-  -> Action: "C"   # P0 checks
-Step 2: current_player=1, legal_actions=["F", "C", "R"], rewards=[0.0, 0.0]
-  -> Action: "R"   # P1 raises (bluffing with Jack)
-Step 3: current_player=0, legal_actions=["F", "C"], rewards=[0.0, 0.0]
-  -> Action: "C"   # P0 calls with King
-Step 4 (TERMINAL): current_player=-4, legal_actions=[], rewards=[2.0, -2.0]
-  # Showdown: K > J, P0 wins
+## Action String Specification
+Player actions: ["Fold", "Call", "Raise"]
+  - "Fold": forfeit the hand
+  - "Call": match the current bet (also used as a zero-cost check when no bet is outstanding)
+  - "Raise": increase the bet by 1 unit
+Chance actions: format "<P0_card><P1_card>" where card ∈ {J, Q, K}, e.g. "KJ", "QK"

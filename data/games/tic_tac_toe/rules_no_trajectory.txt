@@ -1,0 +1,21 @@
+### Rules of Tic-Tac-Toe
+* **Setup:** Tic-Tac-Toe is played on a 3x3 grid, which starts completely empty.
+* **Players and Marks:** There are two players: Player 0 uses the 'x' mark and Player
+1 uses the 'o' mark.
+* **Turns:** Player 0 ('x') always goes first, and turns alternate between players.
+* **Making a Move:** On your turn, you must place your mark in a single, unoccupied
+square. Attempting to place a mark in an already occupied square is an invalid move
+; you must choose an empty square to complete your turn.
+* **Winning the Game:** The winner is the first player to get three of their marks in
+a row (horizontally, vertically, or diagonally). The game ends immediately as soon
+as a winning line is formed.
+* **Drawing the Game:** If all nine squares on the grid are filled and neither player
+has won, the game ends in a draw.
+* **End the Game:** The game only concludes upon a win or a draw. A player must make a move on their turn as long as there is at least one valid move available on the board. 
+The winner earns reward of 1.0, and the loser earns reward of -1.0.
+* **Move Notation:** Use the move notation 'mark(row,col)', where row and col are 0-indexed. For example, 'x(0,0)' means Player 0 ('x') places their mark in the topleft square.
+
+## Action String Specification
+Player actions: format "<mark>(<row>,<col>)" where mark ∈ {x, o}, row and col are 0-indexed integers
+  - P0 uses mark "x": e.g. "x(0,0)", "x(1,2)", "x(2,2)"
+  - P1 uses mark "o": e.g. "o(0,1)", "o(2,0)"

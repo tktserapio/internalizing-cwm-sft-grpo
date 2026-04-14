@@ -261,7 +261,7 @@ def calculate_score(state: State):
     state["game_over"] = True
 
 def get_rewards(state: State) -> List[float]:
-    return state["scores"] if state["game_over"] else [0.0, 0.0]
+    return state["scores"]
 
 def get_observations(state: State) -> List[PlayerObservation]:
     if state["current_player"] == -1: return [{}, {}]

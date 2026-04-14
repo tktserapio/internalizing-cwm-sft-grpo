@@ -44,9 +44,9 @@ class TestHoldem(unittest.TestCase):
         # P0 (SB) acts first
         self.assertEqual(get_current_player(state), 0)
         actions = get_legal_actions(state)
-        self.assertIn("F", actions)
-        self.assertIn("C", actions)
-        self.assertIn("R", actions)
+        self.assertIn("Fold", actions)
+        self.assertIn("Call", actions)
+        self.assertIn("Raise", actions)
 
     def test_fold_ends_game(self):
         """Test that folding ends the game."""
@@ -58,7 +58,7 @@ class TestHoldem(unittest.TestCase):
             state = apply_action(state, action)
 
         # P0 folds
-        state = apply_action(state, "F")
+        state = apply_action(state, "Fold")
 
         self.assertTrue(state["terminal"])
         self.assertEqual(state["winner"], 1)
@@ -74,10 +74,10 @@ class TestHoldem(unittest.TestCase):
             state = apply_action(state, action)
 
         # P0 calls, P1 checks
-        state = apply_action(state, "C")
+        state = apply_action(state, "Call")
         self.assertEqual(get_current_player(state), 1)
 
-        state = apply_action(state, "K")
+        state = apply_action(state, "Check")
 
         # Should now be dealing flop
         self.assertEqual(state["phase"], PHASE_DEAL_FLOP)
@@ -93,8 +93,8 @@ class TestHoldem(unittest.TestCase):
             state = apply_action(state, action)
 
         # Preflop betting
-        state = apply_action(state, "C")
-        state = apply_action(state, "K")
+        state = apply_action(state, "Call")
+        state = apply_action(state, "Check")
 
         # Deal flop
         for i in range(3):
@@ -204,7 +204,7 @@ class TestHoldem(unittest.TestCase):
         }
 
         # Both check to showdown
-        state = apply_action(state, "K")
+        state = apply_action(state, "Check")
 
         self.assertTrue(state["terminal"])
         self.assertEqual(state["winner"], 0)  # P0 has royal flush
@@ -315,7 +315,7 @@ class TestHoldem(unittest.TestCase):
         my_cards = obs["my_hole_cards"]
 
         # Create simple obs_action_history
-        obs_action_history = [(copy.deepcopy(obs), "C")]
+        obs_action_history = [(copy.deepcopy(obs), "Call")]
 
         # Resample multiple times
         for _ in range(10):

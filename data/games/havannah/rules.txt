@@ -29,23 +29,21 @@ Moves are represented using a coordinate system based on the hexagonal grid. The
 A move is denoted by the column letter followed by the row number. For example, placing a stone on the hex in column C and row 5 is represented as "C5".
 
 ### 6. Example Trajectory
-This example illustrates a sequence of moves and the resulting game state. Note: The game starts with P1.
-
-Step 0: current_player=0, legal_actions=["A1", "A2", ..., "T19"], rewards=[0.0, 0.0]
-  -> Action: "J10"  # P1 places a stone at J10
-Step 1: current_player=1, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", rewards=[0.0, 0.0]
-  -> Action: "K10"  # P2 places a stone at K10
-Step 2: current_player=0, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", "K10", rewards=[0.0, 0.0]
-  -> Action: "I10"  # P1 places a stone at I10
-Step 3: current_player=1, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", "K10", "I10", rewards=[0.0, 0.0]
-  -> Action: "L10"  # P2 places a stone at L10
-Step 4: current_player=0, legal_actions=["A1", "A2", ..., "T19"] excluding "J10", "K10", "I10", "L10", rewards=[0.0, 0.0]
-  -> Action: "H10"  # P1 places a stone at H10, completing a Bridge
-Step 5 (TERMINAL): current_player=-1, legal_actions=[], rewards=[1.0, -1.0]
-  # P1 wins by completing a Bridge between two corners.
+Step 0 (Player 0): The game begins on the grid. It is Player 0's turn. From the available empty intersections on the board, Player 0 chooses to place a stone at coordinate J10.
+Step 1 (Player 1): It is Player 1's turn. Choosing from the remaining empty spaces, Player 1 places a stone at coordinate K10.
+Step 2 (Player 0): It is Player 0's turn again. Player 0 places a stone at coordinate I10.
+Step 3 (Player 1): Player 1 places a stone at coordinate L10.
+Step 4 (Player 0): Player 0 places a stone at coordinate H10. By placing this specific stone, Player 0 successfully forms an unbroken, continuous chain of pieces that completes a bridge connecting the two required corners of the board.
+Step 5 (Terminal): Because Player 0 has achieved the connection objective, the game ends immediately. Player 0 receives a full win (+1.0), and Player 1 receives a loss (-1.0). No further actions can be taken.
 
 ### 7. Additional Rules
 - **Draws:** If the board is completely filled without a winner, the game ends in a draw.
 - **Illegal Moves:** Players cannot place stones on occupied hexes. Any attempt to do so is considered an illegal move.
 
 These rules provide a comprehensive framework for understanding and implementing the game of Havannah, suitable for training AI models to play the game effectively.
+
+## Action String Specification
+Player actions: format "<col><row>" using letter-number notation on the hexagonal board
+  - Column is a capital letter (A, B, C, ...), row is an integer
+  - e.g. "A1", "E5", "J10"
+  - Both players use the same format (player identity tracked via turn order)

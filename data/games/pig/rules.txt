@@ -39,20 +39,17 @@ This is a game with chance nodes:
 
 ### Example Trajectory
 
-Step 0: current_player=0, legal_actions=["roll"], rewards=[0.0, 0.0]
-  # P0 must roll (no points to hold yet)
-  -> Action: "roll"
-Step 1 (CHANCE): current_player=-1, legal_actions=["1", "2", "3", "4", "5", "6"], rewards=[0.0, 0.0]
-  -> Action: "5"  # Die shows 5
-Step 2: current_player=0, legal_actions=["roll", "hold"], rewards=[0.0, 0.0]
-  # P0 has 5 points this turn, score is still 0
-  -> Action: "roll"
-Step 3 (CHANCE): current_player=-1, legal_actions=["1", "2", "3", "4", "5", "6"], rewards=[0.0, 0.0]
-  -> Action: "4"  # Die shows 4
-Step 4: current_player=0, legal_actions=["roll", "hold"], rewards=[0.0, 0.0]
-  # P0 has 9 points this turn
-  -> Action: "hold"  # Bank 9 points
-Step 5: current_player=1, legal_actions=["roll"], rewards=[0.0, 0.0]
-  # P1's turn, P0 now has 9 permanent points
-  -> Action: "roll"
+Step 0 (Player 0): The game begins. It is Player 0's turn. Because they just started their turn and have zero temporary points accumulated, they cannot hold. Their only legal option is to roll the die. Player 0 chooses to roll.
+Step 1 (Chance): The system rolls a standard six-sided die. The result is a 5.
+Step 2 (Player 0): The 5 is added to Player 0's temporary point total for this turn. Because they did not roll a 1 (which would forfeit all temporary points and end their turn), they now have a choice: risk their temporary points by rolling again, or safely hold. Player 0 chooses to risk it and roll again.
+Step 3 (Chance): The system rolls the die again. The result is a 4.
+Step 4 (Player 0): The 4 is added to Player 0's temporary total, bringing their current risk pool to 9 points for this turn. Player 0 chooses to hold. By holding, the 9 temporary points are immediately added to their permanent game score, their temporary total resets to zero, and their turn officially ends.
+Step 5 (Player 1): It is Player 1's turn. Player 0 now has a permanent score of 9. Player 1 starts their turn with zero temporary points, meaning their only legal option is to roll the die. Player 1 chooses to roll.
 ...
+
+## Action String Specification
+Player actions: ["roll", "hold"]
+  - "roll": roll the die and risk losing the turn total
+  - "hold": bank the turn total and end your turn
+Chance actions: single digit string for the die outcome
+  - e.g. "1", "2", "3", "4", "5", "6"

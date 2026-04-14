@@ -31,13 +31,13 @@ A first-price sealed-bid auction is a type of auction where bidders simultaneous
 - **Bid action:** "bid_N" where N is the bid amount (e.g., "bid_3")
 
 ### Example Trajectory
-This shows the expected game state at each step.
+Step 0 (Chance/Setup): The game begins with the system randomly and secretly assigning a private valuation of the auctioned item to each player. Player 0 is assigned a valuation of 3, and Player 1 is assigned a valuation of 5. Each player only knows their own valuation; the opponent's valuation remains completely hidden.
+Step 1 (Player 0): It is Player 0's turn to submit a sealed bid. Knowing their private valuation is 3, Player 0 chooses to submit a bid of 2. This bid remains hidden from Player 1.
+Step 2 (Player 1): It is Player 1's turn to submit a sealed bid. Knowing their private valuation is 5, Player 1 chooses to submit a bid of 4.
+Step 3 (Terminal): Both sealed bids are now revealed. Player 1 bid 4, while Player 0 bid 2. Because Player 1 submitted the higher bid, they win the auction and receive the item. Player 1 must pay their bid amount of 4. Since Player 1 valued the item at 5, their net profit is 1 (5 minus 4). Player 0 did not win the auction, so they pay nothing and receive a profit of 0. The game ends immediately. Player 0 receives a final payoff of 0.0, and Player 1 receives a final payoff of +1.0.
 
-Step 0 (CHANCE): current_player=-1, legal_actions=["11", "12", ..., "55"], rewards=[0.0, 0.0]
-  -> Action: "35"  # P0 values item at 3, P1 values at 5
-Step 1: current_player=0, legal_actions=["bid_0", "bid_1", "bid_2", "bid_3", "bid_4", "bid_5"], rewards=[0.0, 0.0]
-  -> Action: "bid_2"  # P0 bids 2 (shading below valuation of 3)
-Step 2: current_player=1, legal_actions=["bid_0", "bid_1", "bid_2", "bid_3", "bid_4", "bid_5"], rewards=[0.0, 0.0]
-  -> Action: "bid_4"  # P1 bids 4 (shading below valuation of 5)
-Step 3 (TERMINAL): current_player=-4, legal_actions=[], rewards=[0.0, 1.0]
-  # P1 wins with bid 4, pays 4, values at 5. Profit = 5 - 4 = 1
+## Action String Specification
+Player actions: format "bid_<value>" where value is a non-negative integer
+  - e.g. "bid_0", "bid_3", "bid_5"
+Chance actions: format "<v0><v1>" where v0 and v1 are single-digit valuations for P0 and P1
+  - e.g. "13" (P0 values at 1, P1 values at 3), "52"

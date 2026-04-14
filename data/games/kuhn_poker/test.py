@@ -137,17 +137,17 @@ class TestKuhnPoker(unittest.TestCase):
         
         # Step 1: P0 acts
         self.assertEqual(kuhn_poker.get_current_player(s), 0)
-        s = kuhn_poker.apply_action(s, "C") # Check
-        
+        s = kuhn_poker.apply_action(s, "Call") # Check
+
         # Step 2: P1 acts
         self.assertEqual(kuhn_poker.get_current_player(s), 1)
-        s = kuhn_poker.apply_action(s, "R") # Bet
-        
+        s = kuhn_poker.apply_action(s, "Raise") # Bet
+
         # Step 3: P0 acts (facing bet)
         self.assertEqual(kuhn_poker.get_current_player(s), 0)
         legal = kuhn_poker.get_legal_actions(s)
-        self.assertEqual(set(legal), {"F", "C"})
-        s = kuhn_poker.apply_action(s, "C") # Call
+        self.assertEqual(set(legal), {"Fold", "Call"})
+        s = kuhn_poker.apply_action(s, "Call") # Call
         
         # Step 4: Terminal
         self.assertTrue(s["is_terminal"])
@@ -166,7 +166,7 @@ class TestKuhnPoker(unittest.TestCase):
         # 1. Setup the true state
         s = kuhn_poker.get_initial_state()
         s = kuhn_poker.apply_action(s, "JK") # Deal J, K
-        s = kuhn_poker.apply_action(s, "C")  # P0 Checks
+        s = kuhn_poker.apply_action(s, "Call")  # P0 Checks
         
         # 2. Get P1 observation
         obs = kuhn_poker.get_observations(s)[1] # P1 index 1

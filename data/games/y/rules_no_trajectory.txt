@@ -1,0 +1,58 @@
+## Game of Y Rules
+
+Y is a connection game for two players, invented by Craige Schensted and Charles Titus. Players take turns placing stones on a triangular board, trying to connect all three sides.
+
+### 1. Setup
+- **Players:** 2 (Black and White)
+- **Board:** A triangular grid of hexagonal cells. Common sizes are 4-12 cells per edge. A size-4 board has 10 cells total.
+- **Starting position:** The board begins empty.
+- **First player:** Black plays first.
+
+### 2. Board Structure
+The board is triangular with three distinct sides (edges). Corner cells touch two sides. For a size-4 board:
+```
+       A
+      / \
+     1   2
+    / \ / \
+   3   4   5
+  / \ / \ / \
+ 6   7   8   9
+  \   \   \   \
+   B ------- C
+```
+- Side A-B: cells 1, 3, 6
+- Side A-C: cells 2, 5, 9
+- Side B-C: cells 6, 7, 8, 9
+- Corner cells: 6 (touches A-B and B-C), 9 (touches A-C and B-C), 1 and 2 share the A corner
+
+### 3. Gameplay
+- Players alternate turns, placing one stone of their color on any empty cell.
+- Stones are never moved or removed once placed.
+- There is no capturing.
+
+### 4. Winning Condition
+A player wins by forming a connected group of their stones that touches all three sides of the triangle.
+
+- "Connected" means stones are adjacent (sharing an edge on the hex grid).
+- A corner cell counts as touching both of its adjacent sides.
+- The game cannot end in a draw - when the board fills, exactly one player will have a winning connection.
+
+### 5. Move Notation
+Moves are denoted by the cell identifier (letter+number or just number depending on notation system):
+- Example: "7" places a stone on cell 7
+- Example: "B3" places a stone on cell B3
+
+### 6. Observation Space
+- **Public information:** The entire board state is visible to both players.
+- **Private information:** None. Y is a perfect information game.
+
+### 7. Strategy Notes
+- Corner cells are valuable since they touch two sides.
+- The center is strategically important for connecting distant edges.
+- Like Hex, Y favors the first player, so a swap rule is sometimes used.
+
+## Action String Specification
+Player actions: format "<row>,<col>" where row and col are 0-indexed integers
+  - e.g. "0,0", "4,9", "9,4"
+  - Both players use the same format (player identity tracked via turn order)

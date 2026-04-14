@@ -57,12 +57,17 @@ Initial position (White's view from bottom):
 ### Example Trajectory
 This shows the opening moves of a chess game.
 
-Step 0: current_player=0, legal_actions=["P_a2_a3", "P_a2_a4", "P_b2_b3", ..., "N_g1_f3", "N_g1_h3"], rewards=[0.0, 0.0]
-  -> Action: "P_e2_e4"  # White plays King's Pawn opening
-Step 1: current_player=1, legal_actions=["P_a7_a6", "P_a7_a5", ..., "N_g8_f6"], rewards=[0.0, 0.0]
-  -> Action: "P_e7_e5"  # Black responds symmetrically
-Step 2: current_player=0, legal_actions=[...], rewards=[0.0, 0.0]
-  -> Action: "N_g1_f3"  # White develops knight
+Step 0 (Player 0): The game begins. It is Player 0's turn (playing as White). From the available legal moves for the initial pawns and knights, Player 0 chooses to move their King's Pawn forward two squares from e2 to e4.
+Step 1 (Player 1): It is Player 1's turn (playing as Black). Player 1 responds symmetrically, moving their King's Pawn forward two squares from e7 to e5.
+Step 2 (Player 0): It is Player 0's turn again. Player 0 develops a piece, moving their King's Knight in an L-shape from g1 to f3.
 ...
-Step N (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # Checkmate, White wins
+Step N (Terminal): Player 0 successfully places Player 1's King in checkmate, meaning the King is under attack and 
+has no legal moves to escape. The game ends immediately. Player 0 receives a full win (+1.0), and Player 1 receives a 
+loss (-1.0). No further actions can be taken.
+
+## Action String Specification
+Player actions: format "<piece>_<from>_<to>" for regular moves, "<piece>_<from>_<to>_<promo>" for pawn promotion
+  - Piece codes: P (pawn), N (knight), B (bishop), R (rook), Q (queen), K (king)
+  - Squares use algebraic notation: a1–h8
+  - e.g. "P_e2_e4", "N_g1_f3", "B_f1_c4", "P_e7_e8_Q" (promotion)
+Castling: "O-O" (kingside), "O-O-O" (queenside)

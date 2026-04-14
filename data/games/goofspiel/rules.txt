@@ -31,17 +31,19 @@ Goofspiel, also known as The Game of Pure Strategy, is a card game that emphasiz
 ### 6. Example Trajectory
 This shows the expected game state at each step. Note: The game starts with a CHANCE node (current_player=-1) that reveals the prize card. The prize card action format is "PZ" where Z is the rank of the prize card.
 
-Step 0 (CHANCE): current_player=-1, legal_actions=["P1", "P2", ..., "P13"], rewards=[0.0, 0.0]
-  -> Action: "P5"  # Prize card is 5
-Step 1: current_player=0, legal_actions=["B1X", "B2X", ..., "B13X"], rewards=[0.0, 0.0]
-  -> Action: "B7X"  # P1 plays 7
-Step 2: current_player=1, legal_actions=["B7Y"], rewards=[0.0, 0.0]
-  -> Action: "B7Y"  # P2 plays 7
-Step 3 (TERMINAL): current_player=-4, legal_actions=[], rewards=[0.0, 0.0]
-  # Both players played 7, prize card 5 is discarded
+Step 0 (Chance): The game begins. A prize card is randomly revealed from the central deck for the current round: the 5.
+Step 1 (Player 0): It is Player 0's turn to submit a secret bid for the revealed prize. From their available hand of bid cards, Player 0 selects and plays the 7 face-down.
+Step 2 (Player 1): It is Player 1's turn to submit a secret bid. Player 1 also selects a bid card from their hand and plays the 7 face-down.
+Step 3 (Terminal): Both bids are revealed simultaneously. Because both Player 0 and Player 1 bid the exact same value (7), the auction results in a tie. The prize card (valued at 5) is discarded, and neither player is awarded any points. The game ends immediately. Player 0 receives a final payoff of 0.0, and Player 1 receives a final payoff of 0.0. No further actions can be taken.
 
 ### 7. Winning
 - The player with the highest total score from the prize cards at the end of all rounds wins the game.
 - In the event of a tie in total scores, the game is considered a draw.
 
 This comprehensive rule set provides a clear framework for implementing Goofspiel in an AI model, ensuring correct gameplay and strategic decision-making.
+
+## Action String Specification
+Player actions: format "bid:<card>" where card is an integer value
+  - e.g. "bid:1", "bid:7", "bid:13"
+Chance actions: format "prize:<card>" where card is an integer value
+  - e.g. "prize:5", "prize:10"

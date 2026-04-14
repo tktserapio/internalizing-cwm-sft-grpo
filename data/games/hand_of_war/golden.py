@@ -190,8 +190,6 @@ def get_current_player(state: State) -> int:
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player from their last action."""
-    if not state["terminal"]:
-        return [0.0, 0.0]
     if state["winner"] == 0:
         return [1.0, -1.0]
     elif state["winner"] == 1:

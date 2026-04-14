@@ -279,14 +279,12 @@ def get_player_name(player_id: int) -> str:
     return names.get(player_id, "Unknown")
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
-    if not state["is_terminal"]:
-        return [0.0, 0.0]
-
+    """Returns the rewards per player."""
     if state["winner"] == P0:
         return [1.0, -1.0]
-    else:
+    elif state["winner"] == P1:
         return [-1.0, 1.0]
+    return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions for current state. Empty list if terminal."""

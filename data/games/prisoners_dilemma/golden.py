@@ -50,12 +50,13 @@ def get_player_name(player_id: int) -> str:
     return "Terminal"
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
-    if not state["is_terminal"]:
-        return [0.0, 0.0]
-
+    """Returns the rewards per player."""
     p0_choice = state["p0_choice"]
     p1_choice = state["p1_choice"]
+
+    if p0_choice is None or p1_choice is None:
+        return [0.0, 0.0]
+
     p0_reward, p1_reward = PAYOFFS[p0_choice][p1_choice]
     # Normalize to zero-sum by subtracting mean
     mean_reward = (p0_reward + p1_reward) / 2
@@ -81,34 +82,22 @@ def get_observations(state: State) -> List[PlayerObservation]:
     ]
 
 def resample_history(obs_action_history: List[Tuple[PlayerObservation, Optional[Action]]], player_id: int) -> List[Action]:
-    """Stochastically sample a history consistent with player_id's view."""
+    """Stochastically sample a history consistent with player_id's view.
+
+    Returns full action sequence [P0_action, P1_action] from initial state.
+    """
     if not obs_action_history:
         return []
 
-    last_obs, last_action = obs_action_history[-1]
-    my_choice = last_obs.get("my_choice")
+    player_action = obs_action_history[0][1]
+    last_obs = obs_action_history[-1][0]
 
-    # Sample opponent's choice uniformly
-    opponent_choice = random.choice(ACTIONS)
+    if "opponent_choice" in last_obs:
+        opponent_action = last_obs["opponent_choice"]
+    else:
+        opponent_action = random.choice(ACTIONS)
 
     if player_id == P0:
-        history = []
-        if my_choice is not None:
-            history.append(my_choice)
-        if "opponent_choice" in last_obs:
-            history.append(last_obs["opponent_choice"])
-        elif my_choice is not None:
-            history.append(opponent_choice)
+        return [player_action, opponent_action]
     else:
-        history = []
-        if "opponent_choice" in last_obs:
-            history.append(last_obs["opponent_choice"])
-        else:
-            history.append(opponent_choice)
-        if my_choice is not None:
-            history.append(my_choice)
-
-    if last_action is not None and (not history or history[-1] != last_action):
-        history.append(last_action)
-
-    return history
+        return [opponent_action, player_action]

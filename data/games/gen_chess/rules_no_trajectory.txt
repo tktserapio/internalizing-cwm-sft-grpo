@@ -1,0 +1,61 @@
+## Generalized Chess (5x5 Gardner Minichess) Rules
+
+This is Gardner's Minichess, a 5×5 variant of chess that preserves the essential character of chess while being more tractable for analysis.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 plays White, Player 1 plays Black)
+- **Board:** 5×5 grid
+- **White plays first**
+
+### 2. Initial Position
+```
+5: r n b q k   (Black)
+4: p p p p p
+3: . . . . .
+2: P P P P P
+1: R N B Q K   (White)
+   a b c d e
+```
+
+### 3. Pieces and Movement
+Same as standard chess:
+- **King (K):** One square any direction
+- **Queen (Q):** Any number of squares horizontally, vertically, or diagonally
+- **Rook (R):** Any number of squares horizontally or vertically
+- **Bishop (B):** Any number of squares diagonally
+- **Knight (N):** L-shape (2+1), can jump
+- **Pawn (P):** Forward one (or two from start), captures diagonally
+
+### 4. Special Rules
+- **Castling:** Not available (only one rook, no space)
+- **En Passant:** Available when a pawn moves two squares
+- **Promotion:** Pawn reaching the opposite rank promotes (Queen, Rook, Bishop, or Knight)
+
+### 5. Check and Checkmate
+- **Check:** King under attack
+- **Checkmate:** King in check with no legal escape (game ends)
+- **Stalemate:** No legal moves but not in check (draw)
+
+### 6. Draw Conditions
+- Stalemate
+- 50-move rule (50 moves without pawn move or capture)
+- Insufficient material
+
+### 7. Move Notation
+Standard algebraic with underscores:
+- **Piece_from_to:** e.g., "N_b1_c3"
+- **Pawn:** "P_e2_e4"
+- **Promotion:** "P_e4_e5_Q"
+- **Capture:** Same notation (captured piece implicit)
+
+### 8. Board Coordinates
+- Files: a-e (columns, left to right)
+- Ranks: 1-5 (rows, bottom to top from White's view)
+- White starts on ranks 1-2, Black on ranks 4-5
+
+## Action String Specification
+Player actions: format "<piece>_<from>_<to>" for regular moves, "<piece>_<from>_<to>_<promo>" for pawn promotion
+  - Piece codes: P (pawn), N (knight), B (bishop), R (rook), Q (queen), K (king)
+  - Squares use algebraic notation on the 5×5 board: a1–e5
+  - e.g. "P_a2_a3", "N_b1_c3", "P_e4_e5_Q" (promotion)
+Castling: not available in this 5×5 variant

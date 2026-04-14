@@ -32,11 +32,12 @@ Matching Pennies is a classic two-player zero-sum game from game theory. It is a
 - Player 1 (the "mismatcher") wants outcomes to differ
 
 ### Example Trajectory
-This shows the expected game state at each step. The game uses sequential commitment with hidden information to model simultaneous play.
+Step 0 (Player 0): The game begins. It is Player 0's turn to make a secret selection. From the available options of Heads or Tails, Player 0 chooses Heads. This choice is immediately locked in, but it remains completely hidden from Player 1 to simulate simultaneous play.
+Step 1 (Player 1): It is Player 1's turn to make their selection. With absolutely no knowledge of what Player 0 has chosen, Player 1 chooses Tails.
+Step 2 (Terminal): Both locked-in choices are now revealed simultaneously. Player 0 chose Heads, and Player 1 chose Tails. 
+According to the rules, Player 0 wins if the coins match, and Player 1 wins if the coins mismatch. Because the coins show different faces (a mismatch), Player 1 is declared the winner. The game ends immediately. Player 0 receives a loss (-1.0), and Player 1 receives a full win (+1.0). No further actions can be taken.
 
-Step 0: current_player=0, legal_actions=["H", "T"], rewards=[0.0, 0.0]
-  -> Action: "H"  # P0 secretly chooses Heads
-Step 1: current_player=1, legal_actions=["H", "T"], rewards=[0.0, 0.0]
-  -> Action: "T"  # P1 secretly chooses Tails (doesn't see P0's choice)
-Step 2 (TERMINAL): current_player=-4, legal_actions=[], rewards=[-1.0, 1.0]
-  # Mismatch: P1 wins
+## Action String Specification
+Player actions: ["H", "T"]
+  - "H": Heads
+  - "T": Tails

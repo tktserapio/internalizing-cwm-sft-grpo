@@ -53,7 +53,7 @@ class TestHandOfWar(unittest.TestCase):
         # 5. Apply Action and Verify Transition
         # P0 plays 'Ah'. Should move to staged and turn to P1.
         next_state = apply_action(state, 'play:Ah')
-        
+
         self.assertEqual(next_state['staged'][0], 'Ah')
         self.assertNotIn('Ah', next_state['p0_hand'])
         self.assertEqual(next_state['turn'], 1)
@@ -67,23 +67,20 @@ class TestHandOfWar(unittest.TestCase):
         # --- SETUP: Generate a ground truth history ---
         # We simulate a few steps to create a valid history trace.
         
-        # 1. Chance deals
-        deck_cards = ['Ah', 'Kh', 'Qh', 'Jh', 'As', 'Ks', 'Qs', 'Js', 
-                      'Ad', 'Kd', 'Qd', 'Jd', 'Ac', 'Kc', 'Qc', 'Jc']
-        # Fixed deal string for reproducibility in test
-        deal_action = f"deal:{','.join(deck_cards)}" 
+        # 1. Chance deals — use the game's actual deterministic deal (sorted deck)
+        deal_action = get_legal_actions(get_initial_state())[0]
         
         initial_state = get_initial_state()
         state_0 = apply_action(initial_state, deal_action) # P0 turn
         
-        # 2. P0 plays 'Ah' (first card in hand ['Ah', 'Kh', 'Qh'])
+        # 2. P0 plays 'Ac' (first card in hand ['Ac', 'Ad', 'Ah'])
         obs_0_p0 = get_observations(state_0)[0]
-        action_0 = 'play:Ah'
+        action_0 = 'play:Ac'
         state_1 = apply_action(state_0, action_0) # P1 turn
-        
-        # 3. P1 plays 'As' (first card in hand ['As', 'Ks', 'Qs'])
+
+        # 3. P1 plays 'Kc' (first card in hand ['Kc', 'Kd', 'Kh'])
         obs_1_p0 = get_observations(state_1)[0] # P0 observing while waiting
-        action_1 = 'play:As' 
+        action_1 = 'play:Kc'
         # Note: In this game logic, P0 doesn't act here, but the history list tracks (Obs, Action).
         # For P0, the action at state_1 is None (waiting), but to reconstruct history 
         # strictly, we usually track the sequence of ALL actions.

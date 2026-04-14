@@ -347,10 +347,7 @@ def get_player_name(player_id: int) -> str:
     return "Terminal"
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
-    if not state['is_terminal']:
-        return [0.0, 0.0]
-
+    """Returns the rewards per player."""
     result = state['result']
     if result == 'white':
         return [1.0, -1.0]

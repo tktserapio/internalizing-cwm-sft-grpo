@@ -122,3 +122,10 @@ STEP 4: Player 1 moves
 - Action: "Discard 4"
 - Effect: P1 discards index 4 (Red 5) to regain a clue. P1 draws Green 5.
 - Clues rise to 8.
+
+## Action String Specification
+Player actions:
+  - "Play <index>": play card at 0-indexed hand position, e.g. "Play 0", "Play 3"
+  - "Discard <index>": discard card at 0-indexed hand position, e.g. "Discard 1"
+  - "Reveal color <player> <color>": give color clue, e.g. "Reveal color 1 Red"
+  - "Reveal rank <player> <rank>": give rank clue, e.g. "Reveal rank 0 3"

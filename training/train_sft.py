@@ -19,7 +19,6 @@ def load_curriculum_data_ordered(data_path: str) -> list:
     with open(data_path, 'r') as f:
         all_data = json.load(f)
 
-    # Index by game
     by_game = {}
     for entry in all_data:
         game = entry.get('game')
@@ -45,7 +44,7 @@ def load_curriculum_data_ordered(data_path: str) -> list:
 
 def train_curriculum_simple(
     model_name: str = "Qwen/Qwen2.5-3B-Instruct",
-    output_dir: str = "~/scratch/experiments/cwm-sft-curriculum-gentle",
+    output_dir: str = "~/scratch/experiments/cwm-sft",
     data_path: str = "~/cwm-sft-grpo/data/sft_train.json",
     num_epochs: int = 3,
     learning_rate: float = 1e-5,
@@ -62,8 +61,7 @@ def train_curriculum_simple(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     output_dir = os.path.expanduser(output_dir)
     data_path = os.path.expanduser(data_path)
-    
-    # --- FIX 1: PADDING SIDE ---
+
     print(f"Loading tokenizer from {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
@@ -97,7 +95,7 @@ def train_curriculum_simple(
         lora_alpha=lora_alpha,
         target_modules = [
             "q_proj", "k_proj", "v_proj", "o_proj",
-            # "gate_proj", "up_proj", "down_proj",
+            # "gate_proj", "up_proj", "down_proj", # commented out
         ], 
         lora_dropout=0.05,
         bias="none",
@@ -134,7 +132,6 @@ def train_curriculum_simple(
     print(f"\nStarting 'Gentle SFT' for {num_epochs} epochs ({total_examples} examples, Curriculum Order: Easy->Hard)...")
     trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
-    # Save logic
     adapter_path = os.path.join(output_dir, "adapter")
     trainer.model.save_pretrained(adapter_path)
     tokenizer.save_pretrained(adapter_path)
@@ -146,12 +143,12 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="Qwen/Qwen2.5-3B-Instruct")
-    # Change default output dir to distinguish from failed runs
+
     parser.add_argument("--output-dir", default="~/scratch/experiments/cwm-sft") 
     parser.add_argument("--data-path", default="~/cwm-sft-grpo/data/sft_train.json")
-    # Default to 2 epochs for Gentle SFT
+
     parser.add_argument("--epochs", type=int, default=2) 
-    # Default to 1e-5 (Sweet spot for syntax)
+
     parser.add_argument("--lr", type=float, default=1e-5) 
     parser.add_argument("--lora-r", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)

@@ -1,20 +1,3 @@
-#!/usr/bin/env python3
-"""
-GRPO reward function for game implementations.
-
-Optimized for:
-- Speed (fewer games, early termination)
-- Gradient signal (partial credit, not just pass/fail)
-- Gating (static checks must pass before dynamics are rewarded)
-- Safety (timeouts to prevent hanging on bad code)
-
-Usage:
-    from evaluation.grpo_reward import compute_reward
-    reward = compute_reward(code_string, game_name)
-
-    # Or from file
-    reward = compute_reward_from_file(path, game_name)
-"""
 import random
 import copy
 import tempfile
@@ -24,9 +7,9 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-# Add parent dir to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import IMPERFECT_INFO_GAMES
+from config import IMPERFECT_INFO_GAMES, TIER_WEIGHTS
+from evaluation.scenario_runner import run_scenarios
 
 
 class CodeTimeoutError(Exception):
@@ -107,16 +90,6 @@ def load_module_from_file(path: str):
 
 
 def check_static(module) -> tuple[float, bool]:
-    """
-    Check static requirements. Returns (score, can_continue).
-
-    Score breakdown (0-1):
-    - 0.2: syntax (already passed if we got here)
-    - 0.3: API complete
-    - 0.5: types correct (0.1 each for 5 type checks)
-
-    can_continue: True if we can run dynamic tests
-    """
     score = 0.2  # syntax passed
 
     required = ['get_initial_state', 'apply_action', 'get_current_player',
@@ -147,7 +120,9 @@ def check_static(module) -> tuple[float, bool]:
 
     try:
         rewards = module.get_rewards(state)
-        if isinstance(rewards, list) and all(isinstance(r, (int, float)) for r in rewards):
+        if (isinstance(rewards, list)
+            and len(rewards) >= 2
+            and all(isinstance(r, (int, float)) for r in rewards)):
             score += 0.1
     except:
         pass
@@ -170,19 +145,6 @@ def check_static(module) -> tuple[float, bool]:
 
 
 def check_dynamics(module, num_games=20) -> float:
-    """
-    Check runtime dynamics. Returns score 0-1.
-
-    Weighted partial credit for each game:
-    - No crash: 0.35 (most important - code must run)
-    - Immutability: 0.35 (most common LLM bug - apply_action must not mutate input)
-    - Idempotency: 0.15 (get_legal_actions should be consistent)
-    - Terminal correctness: 0.15 (terminal states should have no legal actions)
-
-    Removed (as in behavioral metrics):
-    - Determinism: redundant, caught by other tests
-    - Termination: game-dependent, penalizes complex games
-    """
     total_score = 0.0
 
     for _ in range(num_games):
@@ -192,6 +154,7 @@ def check_dynamics(module, num_games=20) -> float:
             game_immutable = True
             game_idempotent = True
             terminal_correct = True
+            reward_correct = True
 
             for step in range(200):
                 player = module.get_current_player(state)
@@ -199,6 +162,12 @@ def check_dynamics(module, num_games=20) -> float:
                 if player == -4:
                     if module.get_legal_actions(state) != []:
                         terminal_correct = False
+                    # Validate terminal rewards
+                    rewards = module.get_rewards(state)
+                    if (not isinstance(rewards, list)
+                        or len(rewards) < 2
+                        or not all(isinstance(r, (int, float)) for r in rewards)):
+                        reward_correct = False
                     break
 
                 actions = module.get_legal_actions(state)
@@ -221,14 +190,15 @@ def check_dynamics(module, num_games=20) -> float:
 
                 state = next_state
 
-            # Weighted scoring - prioritize common failure modes
-            game_score += 0.35  # no crash (made it through the loop)
+            game_score += 0.25  
             if game_immutable:
-                game_score += 0.35  # immutability (most common LLM bug)
+                game_score += 0.30  # immutability 
             if game_idempotent:
                 game_score += 0.15  # idempotency
             if terminal_correct:
                 game_score += 0.15  # terminal correctness
+            if reward_correct:
+                game_score += 0.15  # reward well-formedness
 
         except:
             pass  # game_score stays 0 (crash)
@@ -238,88 +208,58 @@ def check_dynamics(module, num_games=20) -> float:
     return total_score / num_games
 
 
-def check_rewards(module, num_games=20) -> float:
-    """
-    Check reward correctness. Returns score 0-1.
+def _validate_resample(module, resampled, history, pid) -> float:
+    state = module.get_initial_state()
+    obs_action_iter = iter(history)
+    exp_obs, exp_action = next(obs_action_iter, (None, None))
 
-    Partial credit for:
-    - Sparse rewards (0 mid-game)
-    - Correct dimensions
-    - Zero-sum at terminal
-    """
-    try:
-        num_players = len(module.get_rewards(module.get_initial_state()))
-    except:
-        num_players = 2
+    obs_ok = True
+    action_ok = True
 
-    total_score = 0.0
+    for action in resampled:
+        if module.get_current_player(state) == -4:
+            break
 
-    for _ in range(num_games):
-        game_score = 0.0
-        try:
-            state = module.get_initial_state()
-            sparse_ok = True
-            dim_ok = True
-            zero_sum_ok = True
-            reached_terminal = False
+        # Legality — hard fail, all checks 0
+        if action not in module.get_legal_actions(state):
+            return 0.0
 
-            for _ in range(200):
-                player = module.get_current_player(state)
-                rewards = module.get_rewards(state)
+        if module.get_current_player(state) == pid:
+            if exp_obs is None:
+                # Resampler produced more player turns than history has
+                action_ok = False
+                break
 
-                # Dimension check
-                if not isinstance(rewards, list) or len(rewards) != num_players:
-                    dim_ok = False
+            if module.get_observations(state)[pid] != exp_obs:
+                obs_ok = False
+            if action != exp_action:
+                action_ok = False
 
-                if player == -4 or not module.get_legal_actions(state):
-                    reached_terminal = True
-                    if isinstance(rewards, list) and abs(sum(rewards)) > 1e-9:
-                        zero_sum_ok = False
-                    break
-                else:
-                    if not (isinstance(rewards, list) and all(r == 0 for r in rewards)):
-                        sparse_ok = False
+            exp_obs, exp_action = next(obs_action_iter, (None, None))
 
-                actions = module.get_legal_actions(state)
-                if not actions:
-                    break
-                state = module.apply_action(state, random.choice(actions))
+        state = module.apply_action(state, action)
 
-            # Score (each worth 1/3)
-            if sparse_ok:
-                game_score += 1/3
-            if dim_ok:
-                game_score += 1/3
-            if reached_terminal and zero_sum_ok:
-                game_score += 1/3
+    # All history entries must have been consumed
+    complete_ok = (exp_obs is None)
+    if not complete_ok:
+        obs_ok = False
+        action_ok = False
 
-        except:
-            pass
-
-        total_score += game_score
-
-    return total_score / num_games
+    score = 0.25  # legality passed (didn't early-return)
+    if obs_ok:
+        score += 0.25
+    if action_ok:
+        score += 0.25
+    if complete_ok:
+        score += 0.25
+    return score
 
 
 def check_information(module, num_games=20, requires_resample=False) -> float:
-    """
-    Check information handling (imperfect info games only).
-    Returns score 0-1, or 1.0 for perfect info games (N/A).
-
-    Checks:
-    - resample_legal: resampled actions are legal
-    - obs_reconstruction: observations match original
-    - action_consistency: resampled actions match original player actions
-    - resample_complete: resampler covers all observations
-    - privacy: observations differ between players
-
-    Args:
-        requires_resample: If True, penalize missing resample_history (for imperfect info games)
-    """
     if not hasattr(module, 'resample_history'):
         if requires_resample:
-            return 0.0  # Imperfect info game missing required function
-        return 1.0  # Perfect info game, skip
+            return 0.0
+        return 1.0
 
     # Detect stub implementations by checking source code
     import inspect
@@ -327,7 +267,6 @@ def check_information(module, num_games=20, requires_resample=False) -> float:
     try:
         source = inspect.getsource(module.resample_history)
 
-        # Check for obvious stub comments/patterns
         stub_phrases = [
             '# TODO',
             '# This function would need',
@@ -339,32 +278,24 @@ def check_information(module, num_games=20, requires_resample=False) -> float:
         ]
         has_stub_phrase = any(phrase.lower() in source.lower() for phrase in stub_phrases)
 
-        # Check for hardcoded return like: return ['Right', 'Up'] (string literals in list)
-        # But NOT: return [] (empty list guard) or return [action for ...]
         hardcoded_return = re.search(r"return\s*\[\s*['\"][^]]+['\"]", source)
 
-        # Check if function body actually uses obs_action_history meaningfully
-        # (not just in signature or a trivial check)
         lines = source.split('\n')
         body_lines = [l for l in lines[1:] if l.strip() and not l.strip().startswith('#')]
         uses_input = any('obs_action_history' in l and 'for' in l or 'obs_action_history[' in l
                         for l in body_lines)
 
-        # Flag as stub if: has stub phrase, or hardcoded return without using input
         is_stub = has_stub_phrase or (hardcoded_return and not uses_input)
-
         if is_stub:
-            return 0.0  # Stub/hardcoded implementation
+            return 0.0
     except:
-        pass  # Can't get source, continue with normal checks
+        pass
 
-    import inspect
     sig = inspect.signature(module.resample_history)
     has_terminal_arg = 'last_is_terminal' in sig.parameters
 
     total_score = 0.0
     runs = 0
-    privacy_found = False
 
     for _ in range(num_games):
         try:
@@ -373,30 +304,20 @@ def check_information(module, num_games=20, requires_resample=False) -> float:
             history = []
             is_terminal = False
 
-            for _ in range(100):  # Shorter trajectories for speed
+            for _ in range(100):
                 player = module.get_current_player(state)
-
-                # Privacy check
-                if not privacy_found and player >= 0:
-                    obs = module.get_observations(state)
-                    if isinstance(obs, list) and len(obs) >= 2 and obs[0] != obs[1]:
-                        privacy_found = True
-
                 if player == -4:
                     is_terminal = True
                     break
-
                 actions = module.get_legal_actions(state)
                 if not actions:
                     is_terminal = True
                     break
-
                 action = random.choice(actions)
                 if player == pid:
                     obs = module.get_observations(state)
                     if isinstance(obs, list) and len(obs) > pid:
                         history.append((copy.deepcopy(obs[pid]), action))
-
                 state = module.apply_action(state, action)
 
             if len(history) < 1:
@@ -404,81 +325,50 @@ def check_information(module, num_games=20, requires_resample=False) -> float:
 
             runs += 1
 
-            if has_terminal_arg:
-                resampled = module.resample_history(copy.deepcopy(history), pid, is_terminal)
-            else:
-                resampled = module.resample_history(copy.deepcopy(history), pid)
+            # Call resample twice; average scores for robustness
+            resample_scores = []
+            for _ in range(2):
+                if has_terminal_arg:
+                    resampled = module.resample_history(copy.deepcopy(history), pid, is_terminal)
+                else:
+                    resampled = module.resample_history(copy.deepcopy(history), pid)
 
-            if not isinstance(resampled, list):
-                continue
+                if not isinstance(resampled, list):
+                    resample_scores.append(0.0)
+                    continue
 
-            # Replay check
-            replay = module.get_initial_state()
-            hist_iter = iter(history)
-            exp_obs, exp_action = next(hist_iter, (None, None))
-            has_expectations = exp_obs is not None
+                resample_scores.append(_validate_resample(module, resampled, history, pid))
 
-            legal_ok = True
-            obs_ok = True
-            action_ok = True
+            total_score += sum(resample_scores) / len(resample_scores)
 
-            for action in resampled:
-                cp = module.get_current_player(replay)
-                if cp == -4:
-                    break
-
-                legal_actions = module.get_legal_actions(replay)
-                if not legal_actions or action not in legal_actions:
-                    legal_ok = False
-                    break
-
-                if cp == pid:
-                    if not has_expectations:
-                        # Resampler generated extra moves not in original history
-                        action_ok = False
-                    else:
-                        # Check observation matches
-                        actual = module.get_observations(replay)
-                        if isinstance(actual, list) and len(actual) > pid:
-                            if actual[pid] != exp_obs:
-                                obs_ok = False
-
-                        # Check action matches
-                        if action != exp_action:
-                            action_ok = False
-
-                        # Advance to next expected obs/action
-                        exp_obs, exp_action = next(hist_iter, (None, None))
-                        has_expectations = exp_obs is not None
-
-                replay = module.apply_action(replay, action)
-
-            # Check resampler covered all observations (didn't stop early)
-            complete_ok = not has_expectations
-
-            # Score this run (each check worth 0.2, privacy handled separately)
-            game_score = 0.0
-            if legal_ok:
-                game_score += 0.2
-            if obs_ok:
-                game_score += 0.2
-            if action_ok:
-                game_score += 0.2
-            if complete_ok:
-                game_score += 0.2
-
-            total_score += game_score
-
-        except:
-            runs += 1  # Count failed runs
+        except Exception:
+            runs += 1
 
     if runs == 0:
         return 0.0
 
-    base_score = total_score / runs
-    privacy_bonus = 0.2 if privacy_found else 0.0
+    return total_score / runs
 
-    return min(1.0, base_score + privacy_bonus)
+
+def check_scenarios(module, game_name: str) -> float:
+    scenarios_path = Path(__file__).parent.parent / "data" / "games" / game_name / "scenarios.py"
+    if not scenarios_path.exists():
+        return 1.0
+
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("scenarios", str(scenarios_path))
+        sm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sm)
+        scenarios = sm.SCENARIOS
+    except Exception:
+        return 0.0
+
+    try:
+        result = run_scenarios(module, scenarios)
+        return result["score"]
+    except Exception:
+        return 0.0
 
 
 def compute_reward(
@@ -488,26 +378,12 @@ def compute_reward(
     seed: int = None,
     gated: bool = True,
     weights: dict = None,
-    timeout_seconds: int = 60
+    timeout_seconds: int = 60,
+    use_scenarios: bool = True,
 ) -> float:
-    """
-    Compute GRPO reward for generated code.
-
-    Args:
-        code: Python code string
-        game_name: Name of the game (for logging)
-        num_games: Number of random games per tier (default 20)
-        seed: Random seed for reproducibility
-        gated: If True, must pass static to get dynamics reward, etc.
-        weights: Custom weights for tiers (default: equal)
-        timeout_seconds: Maximum time allowed for reward computation (default 60s)
-
-    Returns:
-        Reward score 0-1
-    """
     try:
         with timeout(timeout_seconds, f"Reward computation for {game_name} timed out after {timeout_seconds}s"):
-            return _compute_reward_inner(code, game_name, num_games, seed, gated, weights)
+            return _compute_reward_inner(code, game_name, num_games, seed, gated, weights, use_scenarios)
     except CodeTimeoutError:
         # Timed out - return 0 reward
         return 0.0
@@ -519,51 +395,50 @@ def _compute_reward_inner(
     num_games: int,
     seed: int,
     gated: bool,
-    weights: dict
+    weights: dict,
+    use_scenarios: bool = True,
 ) -> float:
     """Inner reward computation (without timeout wrapper)."""
     if seed is not None:
         random.seed(seed)
 
     if weights is None:
-        # Dynamics weighted higher - this is where most LLM bugs occur (immutability, crashes)
-        # Information kept high - important for imperfect info games
-        weights = {"static": 0.15, "dynamics": 0.35, "rewards": 0.20, "information": 0.30}
+        # Build weights from applicable tiers, then renormalize to sum to 1.
+        requires_info = game_name in IMPERFECT_INFO_GAMES
+        applicable = {k: v for k, v in TIER_WEIGHTS.items()
+                      if not (k == "information" and not requires_info)
+                      and not (k == "scenarios" and not use_scenarios)}
+        total_w = sum(applicable.values())
+        weights = {k: v / total_w for k, v in applicable.items()}
 
-    # Load module
     module, err = load_module_from_string(code)
 
     if err:
-        # Syntax error - partial credit for getting close
-        # Could analyze error to give more nuanced feedback
         return 0.0
 
-    # Static checks
+    # static and gating check (if you don't have the basic structure, you shouldn't get rewarded for CWM)
     static_score, can_continue = check_static(module)
 
     if gated and not can_continue:
-        # Failed static - only get static score
         return static_score * weights["static"]
 
-    # Dynamics
+    # fuzz / dynamics
     dynamics_score = check_dynamics(module, num_games)
 
     if gated and dynamics_score < 0.5:
-        # Failed dynamics - don't reward further
         return (static_score * weights["static"] +
                 dynamics_score * weights["dynamics"])
 
-    # Rewards
-    rewards_score = check_rewards(module, num_games)
-
-    # Information - penalize missing resample_history for imperfect info games
-    requires_resample = game_name in IMPERFECT_INFO_GAMES
-    info_score = check_information(module, num_games, requires_resample=requires_resample)
-
     total = (static_score * weights["static"] +
-             dynamics_score * weights["dynamics"] +
-             rewards_score * weights["rewards"] +
-             info_score * weights["information"])
+             dynamics_score * weights["dynamics"])
+
+    if "information" in weights:
+        info_score = check_information(module, num_games, requires_resample=True)
+        total += info_score * weights["information"]
+
+    if "scenarios" in weights:
+        scenario_score = check_scenarios(module, game_name)
+        total += scenario_score * weights["scenarios"]
 
     return total
 
@@ -575,12 +450,13 @@ def compute_reward_from_file(
     seed: int = None,
     gated: bool = True,
     weights: dict = None,
-    timeout_seconds: int = 60
+    timeout_seconds: int = 60,
+    use_scenarios: bool = True,
 ) -> float:
     """Compute reward from file path instead of code string."""
     with open(path) as f:
         code = f.read()
-    return compute_reward(code, game_name, num_games, seed, gated, weights, timeout_seconds)
+    return compute_reward(code, game_name, num_games, seed, gated, weights, timeout_seconds, use_scenarios)
 
 
 def compute_reward_batch(
@@ -589,7 +465,8 @@ def compute_reward_batch(
     num_games: int = 20,
     seed: int = None,
     gated: bool = True,
-    timeout_seconds: int = 60
+    timeout_seconds: int = 60,
+    use_scenarios: bool = True,
 ) -> list[float]:
     """Compute rewards for a batch of code samples."""
     rewards = []
@@ -597,7 +474,7 @@ def compute_reward_batch(
         # Use different seed for each sample for diversity
         sample_seed = seed + i if seed is not None else None
         r = compute_reward(code, game_name, num_games, sample_seed, gated,
-                          timeout_seconds=timeout_seconds)
+                          timeout_seconds=timeout_seconds, use_scenarios=use_scenarios)
         rewards.append(r)
     return rewards
 
@@ -612,6 +489,7 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int)
     parser.add_argument('--no-gate', action='store_true', help="Disable gating")
     parser.add_argument('--timeout', type=int, default=60, help="Timeout in seconds (default: 60)")
+    parser.add_argument('--no-scenarios', action='store_true', help="Disable scenario tier (ablation)")
 
     args = parser.parse_args()
 
@@ -621,7 +499,8 @@ if __name__ == "__main__":
         args.num_games,
         args.seed,
         gated=not args.no_gate,
-        timeout_seconds=args.timeout
+        timeout_seconds=args.timeout,
+        use_scenarios=not args.no_scenarios,
     )
 
     print(f"Game: {args.game}")

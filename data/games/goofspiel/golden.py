@@ -137,10 +137,7 @@ def apply_action(state: State, action: Action) -> State:
 
 
 def get_rewards(state: State) -> List[float]:
-    """Returns rewards based on point totals at terminal state."""
-    if get_current_player(state) != TERMINAL_PLAYER:
-        return [0.0, 0.0]
-
+    """Returns rewards based on point totals."""
     p0, p1 = state["points"]
     if p0 > p1:
         return [1.0, -1.0]

@@ -44,12 +44,12 @@ def get_player_name(player_id: int) -> str:
     return "Terminal"
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
-    if not state["is_terminal"]:
-        return [0.0, 0.0]
-
+    """Returns the rewards per player."""
     p0_choice = state["p0_choice"]
     p1_choice = state["p1_choice"]
+
+    if p0_choice is None or p1_choice is None:
+        return [0.0, 0.0]
 
     # P0 wins if choices match, P1 wins if they differ
     if p0_choice == p1_choice:
@@ -79,36 +79,27 @@ def get_observations(state: State) -> List[PlayerObservation]:
     ]
 
 def resample_history(obs_action_history: List[Tuple[PlayerObservation, Optional[Action]]], player_id: int) -> List[Action]:
-    """Stochastically sample a history consistent with player_id's view."""
+    """Stochastically sample a history consistent with player_id's view.
+
+    The player's own actions are known from obs_action_history.
+    The opponent's action is sampled uniformly (hidden information).
+    Returns full action sequence [P0_action, P1_action] from initial state.
+    """
     if not obs_action_history:
         return []
 
-    last_obs, last_action = obs_action_history[-1]
-    my_choice = last_obs.get("my_choice")
+    # The player's action is the recorded action from history
+    player_action = obs_action_history[0][1]
+    last_obs = obs_action_history[-1][0]
 
-    # Sample opponent's choice uniformly (we don't know it)
-    opponent_choice = random.choice(ACTIONS)
-
-    if player_id == P0:
-        history = []
-        if my_choice is not None:
-            history.append(my_choice)
-        if "opponent_choice" in last_obs:
-            history.append(last_obs["opponent_choice"])
-        elif my_choice is not None:
-            # P1 has acted but we haven't seen it yet
-            history.append(opponent_choice)
+    # If terminal observation reveals opponent, use it; otherwise sample
+    if "opponent_choice" in last_obs:
+        opponent_action = last_obs["opponent_choice"]
     else:
-        history = []
-        # P0 acted first
-        if "opponent_choice" in last_obs:
-            history.append(last_obs["opponent_choice"])
-        else:
-            history.append(opponent_choice)
-        if my_choice is not None:
-            history.append(my_choice)
+        opponent_action = random.choice(ACTIONS)
 
-    if last_action is not None and (not history or history[-1] != last_action):
-        history.append(last_action)
-
-    return history
+    # Game order: P0 acts first, then P1
+    if player_id == P0:
+        return [player_action, opponent_action]
+    else:
+        return [opponent_action, player_action]

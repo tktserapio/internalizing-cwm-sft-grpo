@@ -1,0 +1,63 @@
+## Backgammon Game Rules
+
+Backgammon is a two-player board game where players race to move their checkers around and off the board.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 and Player 1)
+- **Board:** 24 points (triangles) numbered 1-24, plus bar and bearoff areas
+- **Checkers:** Each player has 15 checkers
+- **Dice:** Two 6-sided dice
+
+### 2. Initial Position
+Player 0 (moving counterclockwise toward point 1):
+- 2 checkers on point 24
+- 5 checkers on point 13
+- 3 checkers on point 8
+- 5 checkers on point 6
+
+Player 1 (moving clockwise toward point 24):
+- 2 checkers on point 1
+- 5 checkers on point 12
+- 3 checkers on point 17
+- 5 checkers on point 19
+
+### 3. Turn Structure
+1. **CHANCE node** rolls two dice
+2. Player must use both dice values if possible (each die is a separate move)
+3. If doubles are rolled, player gets four moves of that value
+4. If a move is impossible, that die is forfeited
+5. Player must maximize the number of dice used
+
+### 4. Movement Rules
+- Move a checker forward by the exact number of pips shown on a die
+- Cannot land on a point with 2+ opponent checkers (blocked)
+- **Hitting:** Landing on a point with exactly 1 opponent checker sends it to the bar
+- Checkers on the bar must re-enter before making other moves
+
+### 5. Entering from Bar
+- Must enter in opponent's home board (points 1-6 for P0, points 19-24 for P1)
+- Die value determines entry point
+- Cannot enter if that point is blocked
+
+### 6. Bearing Off
+- Once all 15 checkers are in your home board, you can bear off
+- P0's home: points 1-6; P1's home: points 19-24
+- Die value removes checker from that point
+- Can bear off from lower point if no checker on exact point and none behind it
+
+### 7. Winning
+- First player to bear off all 15 checkers wins
+- Winner gets +1.0, loser gets -1.0
+
+### 8. Move Notation
+- **CHANCE actions:** "D_X_Y" where X and Y are die values (e.g., "D_3_5")
+- **Move actions:** "FROM/TO" or "FROM/off" for bearing off
+  - Examples: "24/21" (move from point 24 to 21), "6/off" (bear off from point 6)
+  - Bar entry: "bar/22" (enter from bar to point 22)
+
+## Action String Specification
+Player actions: format "<from>/<to>" for a single move, "<from>/off" to bear off, or comma-separated for multiple moves
+  - e.g. "8/5", "6/off", "8/5,6/5" (two moves in one turn)
+  - "pass" when no moves are available
+Chance actions: format "D_<d1>_<d2>" where d1,d2 ∈ {1,2,3,4,5,6}
+  - e.g. "D_3_5", "D_6_6"

@@ -1,6 +1,6 @@
-## Texas Hold'em Poker Game Rules
+## Poker Hold'em Game Rules
 
-Texas Hold'em is a popular poker variant that involves strategic betting and card play. It combines private and community cards to form the best possible five-card hand. Below are the comprehensive rules for playing Texas Hold'em Poker.
+Poker Hold'em is a popular poker variant that involves strategic betting and card play. It combines private and community cards to form the best possible five-card hand. Below are the comprehensive rules for playing Poker Hold'em.
 
 ### 1. Setup & Preliminaries
 - **Players:** 2 players.
@@ -14,7 +14,7 @@ Texas Hold'em is a popular poker variant that involves strategic betting and car
   - **Post-Flop:** The Big Blind (Non-Dealer) acts first.
 
 ### 2. Game Structure
-Texas Hold'em consists of four betting rounds: Pre-Flop, Flop, Turn, and River.
+Poker Hold'em consists of four betting rounds: Pre-Flop, Flop, Turn, and River.
 
 #### 2.1. Pre-Flop
 - **The Deal:** Each player is dealt two private cards (hole cards) face down.
@@ -64,10 +64,10 @@ Texas Hold'em consists of four betting rounds: Pre-Flop, Flop, Turn, and River.
 
 ### 5. Move Notation
 - Moves can be represented using the following notation:
-  - **F** for Fold
-  - **C** for Call
-  - **R** for Raise (followed by the amount raised, e.g., R50 for raising 50 units)
-  - **K** for Check (if no bet has been made)
+  - **Fold** for Fold
+  - **Call** for Call
+  - **Raise** for Raise
+  - **Check** for Check (if no bet has been made)
 
 ### 6. Observation Space
 - **Public Information:**
@@ -79,35 +79,18 @@ Texas Hold'em consists of four betting rounds: Pre-Flop, Flop, Turn, and River.
   - Each player's hole cards.
 
 ### 7. Example Trajectory
-This shows the expected game state at each step. Assume Player 0 is the Dealer (SB) and Player 1 is the Big Blind (BB).
+Steps 0-3 (Chance/Setup): The game begins. Two private hole cards are dealt secretly, one by one, to Player 0 (acting as the Dealer/Small Blind): the Ace of Hearts and the King of Hearts. Two private hole cards are dealt secretly to Player 1 (acting as the Big Blind): the 7 of Diamonds and the 2 of Spades. Each player can only see their own hole cards.
+Step 4 (Player 0 - Pre-Flop): The pre-flop betting round begins. Mandatory blind bets have been posted. Because Player 0 is the Small Blind, the rules dictate they must act first in this initial round. From their options to Fold, Call the Big Blind, or Raise, Player 0 chooses to Call, matching the Big Blind amount to stay in the hand.
+Step 5 (Player 1 - Pre-Flop): It is Player 1's turn. Because Player 0 only called and did not raise, Player 1 (already having posted the Big Blind) has the special option to simply Check and proceed, or Raise. Player 1 chooses to Check, which concludes the pre-flop betting round.
+Step 6+ (Chance - Community Cards): The system deals the public community cards face-up on the board for both players to share. First, a three-card Flop is dealt (starting with the 10 of Clubs), followed by a betting round. Then a single Turn card is dealt, followed by a betting round. Finally, a single River card is dealt.
+...
+Step N (Player 1 - Post-River): The final betting round begins. Because the game has advanced past the pre-flop phase, the betting order permanently shifts for all remaining rounds: Player 1 (Big Blind) must now act first. Player 1 chooses to Check.
+Step N+1 (Player 0 - Post-River): Player 0 chooses to initiate a bet by selecting Raise.
+Step N+2 (Player 1 - Post-River): Facing a raise, Player 1's options are strictly limited to Fold, Call, or Re-Raise. Player 1 chooses to Call, matching the bet to close the final betting round and force a showdown.
+Step M (Terminal - Showdown): The game proceeds to a showdown. Both players reveal their hidden hole cards. The system evaluates the best possible 5-card poker hand for each player by combining their 2 private hole cards with the 5 public community cards. Player 0's best 5-card hand outranks Player 1's best 5-card hand. Player 0 wins the accumulated pot, resulting in a net profit of +3.0. Player 1 loses their total contributions, resulting in a payoff of -3.0. The game ends immediately, and no further actions can be taken.
 
-Step 0 (CHANCE): current_player=-1, legal_actions=["deal"], rewards=[0.0, 0.0]
-  -> Action: "deal"  # Cards are dealt to players
-Step 1: current_player=0 (SB/Dealer), legal_actions=["F", "C", "R"], rewards=[0.0, 0.0]
-  -> Action: "C"   # P0 calls the big blind
-Step 2: current_player=1 (BB), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
-  -> Action: "K"   # P1 checks (big blind option)
-Step 4 (CHANCE): current_player=-1, legal_actions=["flop"], rewards=[0.0, 0.0]
-  -> Action: "flop"  # Flop is dealt
-Step 5: current_player=1 (BB - First post-flop), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
-  -> Action: "K"   # P1 checks
-Step 6: current_player=0 (SB/Dealer), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
-  -> Action: "R50" # P0 bets 50 units
-Step 7: current_player=1 (BB), legal_actions=["F", "C", "R"], rewards=[0.0, 0.0]
-  -> Action: "C"   # P1 calls
-Step 8 (CHANCE): current_player=-1, legal_actions=["turn"], rewards=[0.0, 0.0]
-  -> Action: "turn"  # Turn is dealt
-Step 9: current_player=1 (BB), legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
-  -> Action: "K"   # P1 checks
-Step 10: current_player=1, legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
-  -> Action: "K"   # P1 checks
-Step 11 (CHANCE): current_player=-1, legal_actions=["river"], rewards=[0.0, 0.0]
-  -> Action: "river"  # River is dealt
-Step 12: current_player=0, legal_actions=["F", "K", "R"], rewards=[0.0, 0.0]
-  -> Action: "R200" # P0 bets 200 units
-Step 13: current_player=1, legal_actions=["F", "C"], rewards=[0.0, 0.0]
-  -> Action: "C"   # P1 calls
-Step 14 (TERMINAL): current_player=-4, legal_actions=[], rewards=[500.0, -500.0]
-  # Showdown: P0 wins with a higher hand
-
-This detailed rule set provides a comprehensive guide for an AI model to learn and play Texas Hold'em Poker correctly.
+## Action String Specification
+Player actions when facing a bet: ["Fold", "Call", "Raise"]
+Player actions when no bet is outstanding: ["Check", "Raise"]
+Chance actions: format "deal:<rank><suit>" where rank ∈ {2,3,4,5,6,7,8,9,T,J,Q,K,A} and suit ∈ {c,d,h,s}
+  e.g. "deal:Ah", "deal:Tc", "deal:2s"

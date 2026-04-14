@@ -57,8 +57,8 @@ def get_player_name(player_id: int) -> str:
     return names.get(player_id, "Unknown")
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
-    if not state["is_terminal"]:
+    """Returns the rewards per player."""
+    if len(state["valuations"]) < 2 or len(state["bids"]) < 2:
         return [0.0, 0.0]
 
     v0, v1 = state["valuations"]
@@ -122,46 +122,35 @@ def get_observations(state: State) -> List[PlayerObservation]:
     return [p0_obs, p1_obs]
 
 def resample_history(obs_action_history: List[Tuple[PlayerObservation, Optional[Action]]], player_id: int) -> List[Action]:
-    """Stochastically sample a history consistent with player_id's view."""
+    """Stochastically sample a history consistent with player_id's view.
+
+    Returns full action sequence [deal, P0_bid, P1_bid] from initial state.
+    """
     if not obs_action_history:
         return []
 
-    last_obs, last_action = obs_action_history[-1]
-    my_valuation = last_obs.get("my_valuation")
+    # Player's own bid is the recorded action
+    player_bid_action = obs_action_history[0][1]
+    last_obs = obs_action_history[-1][0]
 
-    # Sample opponent's valuation uniformly
+    my_valuation = last_obs.get("my_valuation")
     opponent_valuation = random.choice(VALUATIONS)
 
-    # Construct deal action
+    # Construct deal action (chance): P0_val then P1_val
     if player_id == P0:
         deal = f"{my_valuation}{opponent_valuation}"
     else:
         deal = f"{opponent_valuation}{my_valuation}"
 
-    history = [deal]
-
-    # Add bids
-    my_bid = last_obs.get("my_bid")
+    # Determine opponent's bid
     opponent_bid = last_obs.get("opponent_bid")
-
-    if player_id == P0:
-        if my_bid is not None:
-            history.append(f"bid_{my_bid}")
-        if opponent_bid is not None:
-            history.append(f"bid_{opponent_bid}")
-        elif my_bid is not None:
-            # Opponent has bid but we don't know it yet - sample
-            history.append(f"bid_{random.choice(BID_RANGE)}")
+    if opponent_bid is not None:
+        opponent_bid_action = f"bid_{opponent_bid}"
     else:
-        if opponent_bid is not None:
-            history.append(f"bid_{opponent_bid}")
-        else:
-            # P0 has bid but we don't know it
-            history.append(f"bid_{random.choice(BID_RANGE)}")
-        if my_bid is not None:
-            history.append(f"bid_{my_bid}")
+        opponent_bid_action = f"bid_{random.choice(BID_RANGE)}"
 
-    if last_action is not None and (not history or history[-1] != last_action):
-        history.append(last_action)
-
-    return history
+    # Game order: deal, P0 bids, P1 bids
+    if player_id == P0:
+        return [deal, player_bid_action, opponent_bid_action]
+    else:
+        return [deal, opponent_bid_action, player_bid_action]

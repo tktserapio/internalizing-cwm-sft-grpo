@@ -1,0 +1,41 @@
+## Breakthrough Game Rules
+
+Breakthrough is a two-player abstract strategy board game that emphasizes tactical movement and strategic positioning. The objective is to advance one of your pieces to the opponent's back row. Below are the comprehensive rules for playing Breakthrough.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 1 (P1) and Player 2 (P2)).
+- **Board:** 8x8 grid (standard chess board).
+- **Pieces:** Each player has 16 pieces, initially occupying the first two rows closest to them.
+  - **P1's Pieces:** Represented by 'W' (White), start on rows 1 and 2.
+  - **P2's Pieces:** Represented by 'B' (Black), start on rows 7 and 8.
+
+### 2. Objective
+- The goal is to move one of your pieces to the opponent's back row (P1 to row 8, P2 to row 1).
+
+### 3. Movement Rules
+- **Basic Movement:** Pieces move one square forward diagonally or straight.
+  - **Forward Diagonal Move:** A piece can move to an adjacent diagonal square in the forward direction (P1 moves towards row 8, P2 moves towards row 1).
+  - **Forward Straight Move:** A piece can move directly forward to the square immediately in front of it.
+  
+- **Capture:** A piece can capture an opponent's piece by moving to an occupied diagonal square in the forward direction. Captures are mandatory if possible.
+
+### 4. Game Play
+- **Turn Order:** P1 moves first, followed by P2. Players alternate turns.
+- **Move Execution:** On each turn, a player must move one of their pieces according to the movement rules.
+- **Winning the Game:** The game is won by the first player to move a piece to the opponent's back row.
+
+### 5. Move Notation
+- Moves are denoted using standard chess-like notation, specifying the starting and ending positions of the piece.
+  - **Format:** `e2-e3` where `e2` is the starting square and `e3` is the ending square.
+  - **Capture Notation:** Use `x` to indicate a capture, e.g., `e2xd3`.
+
+### 6. Additional Considerations
+- **Stalemate:** If a player cannot make a legal move, the game ends in a stalemate, and the opponent wins.
+- **Draws:** There are no draws in Breakthrough; the game continues until one player wins.
+
+These rules provide a comprehensive guide to playing Breakthrough, ensuring clarity for both human players and AI models learning the game.
+
+## Action String Specification
+Player actions: format "<src>-<dst>" for a forward move, "<src>x<dst>" for a diagonal capture
+  - Squares use algebraic notation (e.g. e2, d4)
+  - e.g. "e2-e3", "d4-d5", "e4xd5", "c3xb4"

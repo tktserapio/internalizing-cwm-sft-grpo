@@ -1,18 +1,26 @@
 CURRICULUM = [
-    ["tic_tac_toe", "connect4", "pig", "dots_and_boxes"],
-    ["blackjack", "kuhn_poker", "go", "breakthrough", "first_price_auction", "pentago", "matching_pennies", "prisoners_dilemma"],
-    ["liars_dice", "goofspiel", "battleship", "checkers", "chess", "hanabi"],
-    ["havannah", "hand_of_war", "negotiation", "backgammon", "gin_rummy", "gen_chess"],
+    # Tier 1
+    ["tic_tac_toe", "connect4", "matching_pennies", "prisoners_dilemma", "pig", "dots_and_boxes"],
+    # Tier 2
+    ["blackjack", "kuhn_poker", "go", "breakthrough", "first_price_auction", "pentago"],
+    # Tier 3
+    ["liars_dice", "goofspiel", "battleship", "checkers", "chess", "leduc_poker"],
+    # Tier 4
+    ["havannah", "negotiation", "poker_holdem", "backgammon", "hanabi"],
 ]
 
 TRAINING_GAMES = [game for tier in CURRICULUM for game in tier]
 
 EVAL_GAMES = [
-    "gen_tic_tac_toe",
+    # perfect
     "y",
-    "leduc_poker",
-    "quadranto",
-    "poker_holdem", 
+    "gen_tic_tac_toe", # OOD
+    "gen_chess", # OOD
+    "converge", # OOD
+    # imperfect
+    "gin_rummy",
+    "quadranto", # OOD
+    "hand_of_war" # OOD
 ]
 
 IMPERFECT_INFO_GAMES = {
@@ -20,8 +28,15 @@ IMPERFECT_INFO_GAMES = {
     "goofspiel", "hand_of_war", "quadranto", "gin_rummy", "poker_holdem",
     "matching_pennies", "prisoners_dilemma", "first_price_auction",
     "negotiation", "battleship", "hanabi"
-    
 }
+
+TIER_WEIGHTS = {
+    "static": 0.15,
+    "dynamics": 0.25,
+    "information": 0.30,
+    "scenarios": 0.30,
+}
+
 
 def get_info_type(game: str) -> str:
     """Return 'imperfect' or 'perfect' for a game."""

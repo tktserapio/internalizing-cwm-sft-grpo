@@ -1,0 +1,62 @@
+## Kuhn Poker Game Rules
+
+Kuhn Poker is a simplified two-player poker variant that emphasizes strategic betting and bluffing. It uses a minimal deck of cards and has straightforward betting rules, making it an excellent choice for AI research. Below are the comprehensive rules for playing Kuhn Poker.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 1 (P1) and Player 2 (P2)).
+- **Deck:** 3 cards (King (K), Queen (Q), Jack (J)). Each card is unique.
+- **Blinds:** There are no blinds in Kuhn Poker.
+- **The Deal:** Each player is dealt one private card face down. The cards are drawn randomly from the deck.
+
+### 2. Core Betting Rules
+- **Betting Actions:** Players can perform the following actions during their turn:
+  - **Fold (F):** Forfeit the hand and the pot.
+  - **Call (C):** Match the current bet.
+  - **Raise (R):** Increase the current bet by a fixed amount.
+  
+- **Raise Sizing:** The amount to raise is fixed at **1 unit** for both rounds.
+- **Total Betting Cap:** The total betting cap for each round is a maximum of **one raise** per player.
+
+### 3. Round 1: Pre-Flop Betting
+This round occurs before any public cards are revealed.
+- **P1's First Action:** P1 acts first.
+  - **Fold (F):** P1 forfeits the hand. P2 wins the pot.
+  - **Call (C):** P1 matches the bet of 0 units (no initial bet).
+  - **Raise (R):** P1 raises the bet by 1 unit (total bet becomes 1 unit).
+
+- **P2's Action:**
+  - If P1 **folded**, the round ends, and P2 wins the pot.
+  - If P1 **called**, P2 can:
+    - **Fold (F):** Forfeit the hand and lose the pot.
+    - **Call (C):** Match the bet of 0 units (no additional cost).
+    - **Raise (R):** Raise the bet by 1 unit (total bet becomes 1 unit).
+  - If P1 **raised**, P2 can:
+    - **Fold (F):** Forfeit the hand and lose the pot.
+    - **Call (C):** Match the bet of 1 unit (total bet becomes 1 unit).
+
+### 4. Round 2: Showdown
+After the betting concludes in Round 1, if both players have not folded, a showdown occurs.
+
+- **Showdown:** Each player reveals their private card.
+- **Hand Ranking:**
+  - **K > Q > J:** The player with the higher card wins.
+  
+- **Ties:** If both players have the same card (not possible in this variant), the pot is split. However, since there are no duplicate cards, ties cannot occur.
+
+### 5. Winning
+A player wins the pot in one of two ways:
+- By being the only player remaining after the other player folds.
+- By having the higher-ranked card during the showdown.
+
+### 6. Move Notation
+- Moves can be represented using the following notation:
+  - **Fold** for Fold
+  - **Call** for Call (also used as Check when there is no outstanding bet)
+  - **Raise** for Raise
+
+## Action String Specification
+Player actions: ["Fold", "Call", "Raise"]
+  - "Fold": forfeit the hand
+  - "Call": match the current bet (also used as a zero-cost check when no bet is outstanding)
+  - "Raise": increase the bet by 1 unit
+Chance actions: format "<P0_card><P1_card>" where card ∈ {J, Q, K}, e.g. "KJ", "QK"

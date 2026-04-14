@@ -1,0 +1,51 @@
+## Liar's Dice Game Rules
+
+Liar's Dice is a classic dice game of bluffing and deception. It involves players making bids on the number of dice showing a certain face, with the option to challenge the previous bid if they believe it to be false. Below are the comprehensive rules for playing Liar's Dice.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 1 (P1), Player 2 (P2)).
+- **Dice:** Each player starts with 5 six-sided dice.
+- **Cups:** Each player has a cup to conceal their dice.
+- **Initial Roll:** At the beginning of each round, all players roll their dice under their cups, keeping the result hidden from other players.
+
+### 2. Game Structure
+- **Rounds:** The game is played in rounds, with each round consisting of a series of bids and challenges.
+- **Starting Player:** The first player to bid is chosen randomly or by agreement.
+
+### 3. Bidding
+- **Bid Format:** A bid is made in the format "X-Y" where X is the quantity of dice and Y is the face value (e.g., "3-4" means three dice showing a face value of four).
+- **Valid Bids:** A bid must either:
+  - Increase the quantity (X) of the previous bid.
+  - If the quantity remains the same, increase the face value (Y).
+- **Wild Ones:** Ones (1s) are wild and count as any face value when determining the validity of a bid. However, a bid specifically on ones (e.g., "2-1") is not wild.
+
+### 4. Challenging
+- **Challenge Action:** A player can challenge the previous bid if they believe it to be false.
+- **Challenge Resolution:** When a challenge is made:
+  - All players reveal their dice.
+  - Count the total number of dice showing the face value of the last bid, including ones if they are wild.
+  - If the bid is valid (i.e., the total is equal to or greater than the bid), the challenger loses one die.
+  - If the bid is invalid, the player who made the bid loses one die.
+
+### 5. Ending a Round
+- **Round Termination:** A round ends when a challenge is resolved.
+- **Next Round:** The player who lost a die starts the next round.
+
+### 6. Winning the Game
+- **Elimination:** A player is eliminated when they lose all their dice.
+- **Victory:** The last player remaining with dice is the winner.
+
+### 7. Observation Space
+- **Public Information:** The current bid and the number of dice each player has.
+- **Private Information:** Each player's dice results.
+
+### 8. Move Notation
+- **Bid:** "X-Y" where X is the quantity and Y is the face value.
+- **Challenge:** "C" to indicate a challenge of the previous bid.
+
+## Action String Specification
+Player actions:
+  - Bid: format "bid:<quantity>:<face>" e.g. "bid:2:3", "bid:4:6"
+  - Challenge: "liar"
+Chance actions: format "roll:<value>" where value ∈ {1,2,3,4,5,6}
+  - e.g. "roll:3", "roll:6"

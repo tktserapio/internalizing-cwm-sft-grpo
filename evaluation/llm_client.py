@@ -1,13 +1,3 @@
-"""
-LLM Client for benchmark evaluation.
-
-Provides a unified interface for calling various LLM APIs:
-- OpenAI (GPT-4o, GPT-4, etc.)
-- Local vLLM endpoints
-- Anthropic (Claude)
-- OpenRouter (access to many models including Kimi, DeepSeek, etc.)
-"""
-
 import os
 import time
 import json
@@ -17,6 +7,7 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 @dataclass
 class LLMResponse:

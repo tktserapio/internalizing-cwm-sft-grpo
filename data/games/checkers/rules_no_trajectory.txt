@@ -1,0 +1,43 @@
+## Checkers (Draughts) Game Rules
+
+Checkers is a classic two-player strategy board game played on an 8×8 board. This implementation uses standard American/English Checkers rules.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 uses 'r' for red, Player 1 uses 'b' for black)
+- **Board:** 8×8 grid, only dark squares are used
+- **Pieces:** Each player starts with 12 pieces on their three nearest rows
+- **Starting Position:** Pieces occupy dark squares in rows 0-2 (black) and rows 5-7 (red)
+
+### 2. Piece Types
+- **Regular pieces:** Can only move forward diagonally
+- **Kings:** Promoted when reaching the opposite end; can move diagonally in any direction
+- Notation: lowercase (r, b) for regular pieces, uppercase (R, B) for kings
+
+### 3. Movement Rules
+- **Simple move:** Move diagonally forward to an adjacent empty square
+- **Jump (capture):** Jump over an opponent's piece to capture it; piece is removed
+- **Mandatory capture:** If a capture is available, you MUST take it
+- **Multiple jumps:** If after a jump another capture is available with the same piece, you must continue jumping
+
+### 4. Winning Conditions
+- Capture all opponent pieces, OR
+- Block all opponent pieces so they cannot move
+- Winner gets +1.0, loser gets -1.0
+- Draw if no captures for 40 moves (simplified rule)
+
+### 5. Move Notation
+- **Simple move:** "move_r1c1_r2c2" (from row1,col1 to row2,col2)
+- **Jump:** "jump_r1c1_r2c2" (jump from r1c1 to r2c2, capturing the piece between)
+- **Multi-jump:** "jump_r1c1_r2c2_r3c3" (chain of jumps)
+
+### 6. Board Orientation
+- Row 0 is at the top (black's home)
+- Row 7 is at the bottom (red's home)
+- Player 0 (red) moves up, Player 1 (black) moves down
+
+## Action String Specification
+Player actions:
+  - Simple move: format "move_<r1>_<c1>_<r2>_<c2>" where rows/cols are 0-indexed
+    e.g. "move_5_0_4_1"
+  - Jump (capture): format "jump_<r1>_<c1>_<r2>_<c2>" or multi-jump "jump_<r1>_<c1>_<r2>_<c2>_<r3>_<c3>..."
+    e.g. "jump_5_2_3_0", "jump_5_2_3_0_1_2"

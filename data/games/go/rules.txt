@@ -34,18 +34,15 @@ Go is an ancient two-player strategy board game. This implementation uses a 9×9
 - With komi at 6.5, ties are impossible
 
 ### Example Trajectory
-This shows the beginning of a Go game.
-
-Step 0: current_player=0, legal_actions=["place_0_0", "place_0_1", ..., "pass"], rewards=[0.0, 0.0]
-  -> Action: "place_4_4"  # Black plays center (tengen)
-Step 1: current_player=1, legal_actions=["place_0_0", ..., "pass"], rewards=[0.0, 0.0]
-  -> Action: "place_2_6"  # White plays upper right
-Step 2: current_player=0, legal_actions=[...], rewards=[0.0, 0.0]
-  -> Action: "place_6_2"  # Black plays lower left
+Step 0 (Player 0): The game begins on the grid. It is Player 0's turn (playing as Black). From the available empty intersections on the board, Player 0 chooses to place a stone in the center at coordinate (4, 4) (often called tengen).
+Step 1 (Player 1): It is Player 1's turn (playing as White). Player 1 places a stone in the upper right quadrant at coordinate (2, 6).
+Step 2 (Player 0): It is Player 0's turn again. Player 0 places a stone in the lower left quadrant at coordinate (6, 2).
 ...
-Step N-1: current_player=0, legal_actions=[...], rewards=[0.0, 0.0]
-  -> Action: "pass"  # Black passes
-Step N: current_player=1, legal_actions=[...], rewards=[0.0, 0.0]
-  -> Action: "pass"  # White passes
-Step N+1 (TERMINAL): current_player=-4, legal_actions=[], rewards=[-1.0, 1.0]
-  # Game scored, White wins by 2.5 points
+Step N-1 (Player 0): Finding no more profitable moves to make without reducing their own score, Player 0 chooses to pass their turn.
+Step N (Player 1): Player 1 agrees that the board is settled and also chooses to pass their turn.
+Step N+1 (Terminal): Because both players have chosen to pass their turns consecutively, the active gameplay phase ends immediately and the game proceeds to scoring. After calculating the controlled territory, captured stones, and applying the standard handicap bonus (komi) for White, White's total score exceeds Black's by 2.5 points. Player 1 (White) receives a full win (+1.0), and Player 0 (Black) receives a loss (-1.0). No further actions can be taken.
+
+## Action String Specification
+Player actions: format "place_<row>_<col>" for placing a stone, or "pass" to pass
+  - row and col are 0-indexed integers (0–8 for a 9×9 board)
+  - e.g. "place_0_0", "place_4_4", "place_8_8", "pass"

@@ -46,15 +46,18 @@ For a 3×3 dot grid:
 
 ### Example Trajectory
 
-Step 0: current_player=0, legal_actions=["h_0_0", "h_0_1", "h_1_0", ...], rewards=[0.0, 0.0]
-  -> Action: "h_0_0"  # P0 draws top-left horizontal line
-Step 1: current_player=1, legal_actions=["h_0_1", "h_1_0", ...], rewards=[0.0, 0.0]
-  -> Action: "h_0_1"  # P1 draws top-right horizontal line
+Step 0 (Player 0): The game begins on a grid of dots. It is Player 0's turn. From the available empty spaces between adjacent dots, Player 0 chooses to draw a horizontal line in the top-left corner of the grid.
+Step 1 (Player 1): It is Player 1's turn. Player 1 chooses to draw another horizontal line adjacent to the first one.
 ...
-Step N: current_player=0, legal_actions=["v_0_1"], rewards=[0.0, 0.0]
-  -> Action: "v_0_1"  # P0 completes a box, gets extra turn
-Step N+1: current_player=0, legal_actions=["h_1_0"], rewards=[0.0, 0.0]
-  # P0 goes again because they completed a box
+Step N (Player 0): It is Player 0's turn. Player 0 draws a vertical line that closes off the fourth and final side of a 1x1 square on the grid. Player 0 claims this completed box and scores a point.
+Step N+1 (Player 0 - Extra Turn): Because Player 0 successfully completed a box on their previous action, the rules dictate that they are granted an immediate extra turn. Player 0 goes again, drawing another horizontal line elsewhere on the grid.
 ...
-Step M (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # P0 won with 3 boxes vs P1's 1 box
+Step M (Terminal): The final possible line is drawn on the board, leaving no more empty spaces between dots. The game ends immediately. Player 0 has claimed a total of 3 boxes, while Player 1 has claimed 1 box. Having secured the majority of the boxes, 
+Player 0 receives a full win (+1.0), and Player 1 receives a loss (-1.0). No further actions can be taken.
+
+## Action String Specification
+Player actions:
+  - Horizontal line: format "h_<row>_<col>" where row,col are 0-indexed
+    e.g. "h_0_0", "h_2_1"
+  - Vertical line: format "v_<row>_<col>"
+    e.g. "v_0_0", "v_1_2"

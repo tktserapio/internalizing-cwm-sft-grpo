@@ -1,0 +1,39 @@
+## Go Game Rules
+
+Go is an ancient two-player strategy board game. This implementation uses a 9×9 board (beginner size) with standard rules including ko and suicide prevention.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 uses black 'B', Player 1 uses white 'W')
+- **Board:** 9×9 grid of intersections
+- **Komi:** White receives 6.5 points compensation for going second
+- **Black plays first**
+
+### 2. Basic Rules
+- **Placement:** On your turn, place one stone on any empty intersection, or pass
+- **Liberties:** A stone or connected group of stones survives if it has at least one liberty (adjacent empty point)
+- **Capture:** If placing a stone removes all liberties from opponent stones, those stones are captured and removed
+
+### 3. Special Rules
+- **Suicide:** A move is illegal if it would cause your own stones to have no liberties (unless it captures opponent stones first)
+- **Ko:** You cannot make a move that recreates the exact previous board position
+- **Two passes:** Game ends when both players pass consecutively
+
+### 4. Scoring (Area scoring)
+- Count the number of intersections your stones occupy plus empty intersections your stones surround
+- White adds komi (6.5 points)
+- Higher score wins
+
+### 5. Move Notation
+- **place_R_C:** Place stone at row R, column C (0-indexed)
+- **pass:** Pass your turn
+
+### 6. Winning Conditions
+- Game ends when both players pass consecutively
+- Score is computed and higher score wins
+- Winner gets +1.0, loser gets -1.0
+- With komi at 6.5, ties are impossible
+
+## Action String Specification
+Player actions: format "place_<row>_<col>" for placing a stone, or "pass" to pass
+  - row and col are 0-indexed integers (0–8 for a 9×9 board)
+  - e.g. "place_0_0", "place_4_4", "place_8_8", "pass"

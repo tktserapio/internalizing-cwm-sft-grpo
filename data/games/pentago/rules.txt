@@ -40,12 +40,16 @@ Example: "x(1,4)_rotate_2_CW" means Player 0 places at row 1, col 4, then rotate
 ### Example Trajectory
 This shows a short game where X wins with 5-in-a-row.
 
-Step 0: current_player=0, legal_actions=["x(0,0)_rotate_0_CW", ...], rewards=[0.0, 0.0]
-  -> Action: "x(0,0)_rotate_0_CW"  # X places top-left, rotates Q0 clockwise
-Step 1: current_player=1, legal_actions=["o(0,1)_rotate_0_CW", ...], rewards=[0.0, 0.0]
-  -> Action: "o(3,3)_rotate_1_CCW"  # O places center-right, rotates Q1 counter-clockwise
-Step 2: current_player=0, legal_actions=[...], rewards=[0.0, 0.0]
-  -> Action: "x(1,1)_rotate_0_CW"
+Step 0 (Player 0): The game begins on a 6x6 grid that is divided into four smaller 3x3 quadrants. It is Player 0's turn (playing as X). From the available empty spaces, Player 0 places a piece at the top-left coordinate (0, 0). Following the strict rules of the game, every piece placement must be immediately followed by rotating one of the four quadrants. Player 0 chooses to rotate the top-left quadrant 90 degrees clockwise, shifting the position of any pieces inside it.
+Step 1 (Player 1): It is Player 1's turn (playing as O). Player 1 places a piece at coordinate (3, 3). To complete their turn, Player 1 chooses to rotate the top-right quadrant 90 degrees counter-clockwise, altering the board state.
+Step 2 (Player 0): It is Player 0's turn again. Player 0 places a piece at coordinate (1, 1) and completes their turn by rotating the top-left quadrant 90 degrees clockwise again.
 ...
-Step N (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # X gets 5 in a row
+Step N (Terminal): Following Player 0's most recent piece placement and subsequent quadrant rotation, the new board configuration results in Player 0 successfully aligning five of their 'X' pieces in a continuous straight line across the grid. The game ends immediately. Player 0 receives a full win (+1.0), and Player 1 receives a loss (-1.0). No further actions can be taken.
+
+## Action String Specification
+Player actions: format "<mark>(<row>,<col>)_rotate_<quad>_<dir>"
+  - mark ∈ {x, o} (P0 uses x, P1 uses o)
+  - row, col are 0-indexed within the full 6×6 board
+  - quad ∈ {0, 1, 2, 3} (top-left, top-right, bottom-left, bottom-right)
+  - dir ∈ {CW, CCW}
+  - e.g. "x(0,0)_rotate_0_CW", "o(3,4)_rotate_3_CCW"

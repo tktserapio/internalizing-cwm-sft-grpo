@@ -10,7 +10,8 @@ from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from evaluation.run_behavioral_metrics import (
-    run_evaluation, load_module, test_static, TierResult, EvaluationResult
+    run_evaluation, load_module, test_static, load_scenarios,
+    TierResult, EvaluationResult,
 )
 from config import IMPERFECT_INFO_GAMES
 
@@ -35,11 +36,6 @@ def _run_eval_worker(filepath, game, num_games, result_queue):
 
 
 def run_evaluation_with_timeout(filepath, game, num_games, timeout_seconds=60):
-    """
-    Run evaluation with timeout using multiprocessing (actually kills the process).
-
-    Returns (result, timed_out) where result is a simple object with overall_score and tiers.
-    """
     result_queue = mp.Queue()
     proc = mp.Process(
         target=_run_eval_worker,
@@ -81,17 +77,22 @@ def run_evaluation_with_timeout(filepath, game, num_games, timeout_seconds=60):
             dynamics.add("timeout", False, "killed")
             result.tiers["dynamics"] = dynamics
 
-            rewards = TierResult("3. Rewards")
-            rewards.add("timeout", False, "killed")
-            result.tiers["rewards"] = rewards
-
-            information = TierResult("4. Information")
+            information = TierResult("3. Information")
             information.add("timeout", False, "killed")
             result.tiers["information"] = information
 
-            # Calculate score: static score / 4 tiers
-            scores = [t.score for t in result.tiers.values()]
-            result.overall_score = sum(scores) / len(scores)
+            # Add failed scenarios tier if the game has scenarios,
+            # so the denominator matches non-timed-out evaluations.
+            scenarios, _ = load_scenarios(game)
+            if scenarios is not None:
+                scenarios_tier = TierResult("4. Scenarios")
+                for s in scenarios:
+                    scenarios_tier.add(s["name"], False, "timeout")
+                result.tiers["scenarios"] = scenarios_tier
+
+            scores = [t.score for name, t in result.tiers.items()
+                      if not (name == "information" and game not in IMPERFECT_INFO_GAMES)]
+            result.overall_score = sum(scores) / len(scores) if scores else 0.0
 
         return result, True
 
@@ -128,14 +129,19 @@ def run_evaluation_with_timeout(filepath, game, num_games, timeout_seconds=60):
 
 
 def parse_filename(filename: str) -> tuple[str, str, int] | None:
-    """Parse filename like 'tic_tac_toe_base_qwen_gen1.py' -> (game, model, gen_num)."""
-    # Pattern: {game}_{model}_gen{n}.py
-    # --- FIX: Add gpt4o to the pattern ---
+    # Flat format: {game}_{model}_gen{n}.py
     match = re.match(r'^(.+?)_(base_qwen|sft_qwen|grpo_qwen|sft_grpo_qwen|gpt4o)_gen(\d+)\.py$', filename)
-    # ----------------------------------------
     if match:
         game, model, gen = match.groups()
         return game, model, int(gen)
+    return None
+
+
+def parse_filename_no_model(filename: str) -> tuple[str, int] | None:
+    match = re.match(r'^(.+?)_gen(\d+)\.py$', filename)
+    if match:
+        game, gen = match.groups()
+        return game, int(gen)
     return None
 
 
@@ -155,21 +161,46 @@ def main():
         print(f"Directory not found: {comparison_dir}")
         sys.exit(1)
 
-    # Find all .py files and group by game and model
-    files = list(comparison_dir.glob("*.py"))
-    print(f"Found {len(files)} files in {comparison_dir}\n")
+    # Detect layout: subdirectory-based or flat
+    subdirs = [d for d in comparison_dir.iterdir() if d.is_dir() and not d.name.startswith('_')]
+    flat_files = list(comparison_dir.glob("*.py"))
+
+    file_entries = []  # list of (filepath, game, model)
+
+    if subdirs and any(list(d.glob("*.py")) for d in subdirs):
+        # Subdirectory layout: each subdir is a model
+        print(f"Detected subdirectory layout in {comparison_dir}")
+        for model_dir in sorted(subdirs):
+            model_name = model_dir.name
+            for filepath in sorted(model_dir.glob("*.py")):
+                parsed = parse_filename_no_model(filepath.name)
+                if not parsed:
+                    print(f"  Skipping (unrecognized format): {model_name}/{filepath.name}")
+                    continue
+                game, gen_num = parsed
+                file_entries.append((filepath, game, model_name, gen_num))
+        print(f"Found {len(file_entries)} files across {len(subdirs)} model subdirectories\n")
+    elif flat_files:
+        # Flat layout: model name embedded in filename
+        print(f"Detected flat layout in {comparison_dir}")
+        for filepath in sorted(flat_files):
+            parsed = parse_filename(filepath.name)
+            if not parsed:
+                print(f"  Skipping (unrecognized format): {filepath.name}")
+                continue
+            game, model, gen_num = parsed
+            file_entries.append((filepath, game, model, gen_num))
+        print(f"Found {len(file_entries)} files\n")
+    else:
+        print(f"No .py files found in {comparison_dir}")
+        sys.exit(1)
 
     # Structure: {game: {model: [(gen_num, path, result)]}}
     results = defaultdict(lambda: defaultdict(list))
 
-    for filepath in sorted(files):
-        parsed = parse_filename(filepath.name)
-        if not parsed:
-            print(f"  Skipping (unrecognized format): {filepath.name}")
-            continue
-
-        game, model, gen_num = parsed
-        print(f"Evaluating: {filepath.name}...", end=" ", flush=True)
+    for filepath, game, model, gen_num in file_entries:
+        display = f"{model}/{filepath.name}" if filepath.parent != comparison_dir else filepath.name
+        print(f"Evaluating: {display}...", end=" ", flush=True)
 
         try:
             result, timed_out = run_evaluation_with_timeout(

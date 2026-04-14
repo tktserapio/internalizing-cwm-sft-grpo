@@ -89,8 +89,8 @@ def get_player_name(player_id: int) -> str:
     return names.get(player_id, "Unknown")
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
-    if not state["is_terminal"]:
+    """Returns the rewards per player."""
+    if state["outcome"] is None:
         return [0.0, 0.0]
 
     if state["outcome"] == "rejected":

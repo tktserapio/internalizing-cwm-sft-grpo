@@ -15,9 +15,9 @@ def load_prompt_template(is_imperfect: bool) -> str:
     """Load the appropriate prompt template."""
     base_path = Path(__file__).parent / "prompts"
     if is_imperfect:
-        template_path = base_path / "gemini_imperfect_info.txt"
+        template_path = base_path / "imperfect_info.txt"
     else:
-        template_path = base_path / "gemini_perfect_info.txt"
+        template_path = base_path / "perfect_info.txt"
 
     with open(template_path, 'r') as f:
         return f.read()

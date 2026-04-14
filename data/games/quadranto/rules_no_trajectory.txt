@@ -1,0 +1,22 @@
+Quadranto is a partially observable game in which two players try to catch each
+other in a 4 by 4 matrix.
+The 4 by 4 matrix is divided in 4 quadrants. At the beginning, player 0 is
+randomly placed in the top left quadrant and player 1 is randomly placed in the
+bottom right quadrant.
+During their turn, each player can choose to move in each of the four cardinal
+directions, "Left", "Right", "Up", "Down". Or they can choose to "Stay", which
+means they remain where they are. When a player moves, if it lands on the same
+location where the other player is, it wins and the game ends.
+The observation tells the player where it is located and in which *quadrant* the
+opponent player is located. Therefore, neither player knows exactly where the
+other player is located until the very moment in which one player catches the
+other.
+If the players perform a total of 20 moves without catching each other, the game
+ends in a draw, both players get 0 points. If one catches the other, the winning
+player gets +1 points and the losing player gets -1 points.
+
+## Action String Specification
+Setup phase actions (placing units):
+  - P0 places: format "place_p0:<row>,<col>" e.g. "place_p0:0,0"
+  - P1 places: format "place_p1:<row>,<col>" e.g. "place_p1:3,3"
+Movement phase actions: ["Up", "Down", "Left", "Right", "Stay"]

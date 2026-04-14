@@ -174,9 +174,6 @@ def apply_action(state: State, action: Action) -> State:
 
 def get_rewards(state: State) -> List[float]:
     """Returns rewards [black_reward, white_reward]."""
-    if not state["terminal"]:
-        return [0.0, 0.0]
-
     winner = state["winner"]
     if winner == BLACK:
         return [1.0, -1.0]

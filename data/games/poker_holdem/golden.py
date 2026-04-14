@@ -178,14 +178,14 @@ def _betting_actions(state: State) -> List[str]:
     actions = []
 
     if to_call > 0:
-        actions.append("F")  # Fold
-        actions.append("C")  # Call
+        actions.append("Fold")
+        actions.append("Call")
         if state["stacks"][player] > to_call:
-            actions.append("R")  # Raise
+            actions.append("Raise")
     else:
-        actions.append("K")  # Check
+        actions.append("Check")
         if state["stacks"][player] > 0:
-            actions.append("R")  # Bet/Raise
+            actions.append("Raise")
 
     return actions
 
@@ -294,14 +294,14 @@ def apply_action(state: State, action: Action) -> State:
     player = state["current_player"]
     opponent = 1 - player
 
-    if action == "F":
+    if action == "Fold":
         # Fold - opponent wins
         new_state["folded"][player] = True
         new_state["terminal"] = True
         new_state["winner"] = opponent
         new_state["current_player"] = TERMINAL_PLAYER
 
-    elif action == "C":
+    elif action == "Call":
         # Call
         max_bet = max(new_state["bets"])
         call_amount = max_bet - new_state["bets"][player]
@@ -317,7 +317,7 @@ def apply_action(state: State, action: Action) -> State:
         else:
             new_state["current_player"] = opponent
 
-    elif action == "K":
+    elif action == "Check":
         # Check
         new_state["actions_this_round"] += 1
 
@@ -327,7 +327,7 @@ def apply_action(state: State, action: Action) -> State:
         else:
             new_state["current_player"] = opponent
 
-    elif action == "R":
+    elif action == "Raise":
         # Raise/Bet
         max_bet = max(new_state["bets"])
         call_amount = max_bet - new_state["bets"][player]
@@ -356,7 +356,7 @@ def get_player_name(player_id: int) -> str:
 
 
 def get_rewards(state: State) -> List[float]:
-    """Returns rewards at terminal state."""
+    """Returns rewards based on current pot and bets."""
     if not state["terminal"]:
         return [0.0, 0.0]
 
@@ -364,7 +364,6 @@ def get_rewards(state: State) -> List[float]:
     pot = state["pot"]
 
     if winner == 0:
-        # P0 wins - gets pot minus what they put in
         return [float(pot - state["bets"][0]), float(-state["bets"][1])]
     elif winner == 1:
         return [float(-state["bets"][0]), float(pot - state["bets"][1])]

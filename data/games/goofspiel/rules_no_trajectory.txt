@@ -1,0 +1,41 @@
+## Goofspiel Game Rules
+
+Goofspiel, also known as The Game of Pure Strategy, is a card game that emphasizes strategic decision-making and resource management. It is typically played by two players, but can be adapted for more. Below are the comprehensive rules for playing the standard two-player version of Goofspiel.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 1 (P1) and Player 2 (P2)).
+- **Decks:** Each player has a hand of 13 cards, consisting of the Ace through King of a single suit. There is also a separate deck of 13 cards, consisting of the Ace through King of another suit, used as prize cards.
+- **Objective:** Accumulate the highest total score by winning prize cards.
+
+### 2. Game Structure
+- **Prize Deck:** The prize deck is shuffled and placed face down. Cards are revealed one at a time to determine the prize for each round.
+- **Rounds:** The game consists of 13 rounds, one for each card in the prize deck.
+
+### 3. Core Gameplay Rules
+- **Prize Card Reveal:** At the start of each round, the top card of the prize deck is revealed. This card represents the prize for the current round.
+- **Simultaneous Bidding:** Each player selects one card from their hand and places it face down. Once both players have chosen, the cards are revealed simultaneously.
+- **Winning the Prize:**
+  - The player who plays the higher card wins the prize card for that round.
+  - If both players play cards of the same rank, the prize card is discarded and no one wins it.
+- **Card Usage:** Once a card is played, it cannot be used again in subsequent rounds.
+
+### 4. Scoring
+- **Prize Card Values:** Each prize card has a point value equal to its rank (Ace = 1, 2 = 2, ..., 10 = 10, Jack = 11, Queen = 12, King = 13).
+- **Total Score:** At the end of the game, each player sums the values of the prize cards they have won. The player with the highest total score wins the game.
+
+### 5. Move Notation
+- Moves are represented using the following notation:
+  - **BXY** where X is the rank of the card played by P1 and Y is the rank of the card played by P2.
+  - **Prize Card:** The prize card is denoted by its rank, e.g., "PZ" where Z is the rank of the prize card.
+
+### 6. Winning
+- The player with the highest total score from the prize cards at the end of all rounds wins the game.
+- In the event of a tie in total scores, the game is considered a draw.
+
+This comprehensive rule set provides a clear framework for implementing Goofspiel in an AI model, ensuring correct gameplay and strategic decision-making.
+
+## Action String Specification
+Player actions: format "bid:<card>" where card is an integer value
+  - e.g. "bid:1", "bid:7", "bid:13"
+Chance actions: format "prize:<card>" where card is an integer value
+  - e.g. "prize:5", "prize:10"

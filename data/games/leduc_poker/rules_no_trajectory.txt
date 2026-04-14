@@ -1,0 +1,62 @@
+Leduc Poker is a simplified two-player poker game, ideal for AI research, that uses a small deck to focus on core poker concepts like betting strategy and imperfect information.
+Here is a detailed breakdown of the rules to clarify legal moves. Note that in this implementation, the "Check" action is not available; players must use "Call" instead. A call may be zero-cost if there is no outstanding bet to match.
+
+**1. Setup & Preliminaries**
+* **Players:** 2.
+* **Deck:** 6 cards (two Jacks, two Queens, two Kings).
+* **Blinds:** Before cards are dealt, mandatory bets are posted:
+    * Player 1 (P1) posts a **Small Blind** of 1 unit.
+    * Player 2 (P2) posts a **Big Blind** of 2 units.
+* **The Deal:** Each player receives one private card, face down.
+
+**2. Core Betting Rules**
+* **Raise Sizing:** The amount to raise is fixed.
+    * **Round 1:** The raise amount is **2 units**.
+    * **Round 2:** The raise amount is **4 units**.
+* **Total Betting Cap:** The total betting cap for each round is a maximum of **two raises**.
+* **Acting First:** Player 1 (the small blind) acts first in both betting rounds (preflop and post-flop).
+
+**3. Round 1: Pre-Flop Betting**
+This round occurs before the public card is revealed.
+* **P1's First Action:** P1 must act on P2's 2-unit Big Blind.
+    * **Fold:** Forfeit the 1-unit blind. P2 wins the pot.
+    * **Call:** Match the 2 units by putting in 1 more unit.
+    * **Raise:** Make a 2-unit raise, for a total of 4 units (P1 puts in 3 units). The total betting cap has been reached.
+* **P2's Action:**
+    * If P1 **called**, P2 can **Call** (a zero-cost action, as bets are equal) to end the round, or **Raise** (by putting in 2 more units to make it 4 total).
+    * If P1 **raised**, P2 can only **Call** (by putting in 2 more units) or **Fold**. The betting cap has been reached.
+* **P1's Second Action (if necessary):** If P1 called and P2 then raised, the action returns to P1. P1 can only **Call** (by putting in 2 more units) or **Fold**.
+
+**4. The Flop: Public Card**
+After Round 1 betting concludes, one public card is dealt face-up. This card is shared by both players.
+
+**5. Round 2: Post-Flop Betting**
+This round occurs after the flop. There are no blinds.
+* **P1's First Action:**
+    * **Call:** Make a zero-cost call to pass the turn (as there is no outstanding bet).
+    * **Raise:** Make a 4-unit raise.
+* **P2's Action:**
+    * If P1 **called** (at zero-cost), P2 can also **Call** (at zero-cost, ending the round) or **Raise** 4 units.
+    * If P1 **raised**, P2 can **Call** (matching the 4 units), **Raise** (by putting in another 4 units, for a total bet of 8), or **Fold**. The total betting cap has been reached.
+* **Subsequent Actions:**
+    * If P2 **raised** (after P1's initial zero-cost call), the action returns to P1, who can **Call** (the 4 unit bet), **Raise** (to 8 total), or **Fold**. The total betting cap has been reached.
+    * If a player **raises**, the other player can only **Call** or **Fold**, as the betting cap has been reached.
+
+**6. Showdown & Hand Ranking**
+If neither player folds, a showdown occurs after Round 2 betting.
+
+* **Hand:** A player's hand is their private card combined with the public card.
+* **Hand Ranks (best to worst):**
+    1. **Pair:** Two cards of the same rank (e.g., J-J). Higher pairs beat lower pairs.
+    2. **High Card:** If no one has a pair, the player with the highest card wins (K > Q > J).
+* **Ties:** If both players have the same hand rank (e.g., both have a King-high), the pot is split.
+
+**7. Winning**
+A player wins the pot either by being the only one left after the other folds, or by having the best hand at showdown.
+
+## Action String Specification
+Player actions: ["Fold", "Call", "Raise"]
+  - "Fold": forfeit the hand
+  - "Call": match the current bet (also used as a zero-cost check when no bet is outstanding)
+  - "Raise": increase the bet by the fixed amount for the current round
+Chance actions: format "deal:<rank>" where rank ∈ {J, Q, K}, e.g. "deal:J", "deal:Q", "deal:K"

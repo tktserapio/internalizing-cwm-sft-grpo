@@ -171,10 +171,10 @@ class TestGoofspiel(unittest.TestCase):
         """Test that rewards are assigned based on total points."""
         state = get_initial_state()
 
-        # Play a game where P0 clearly wins
-        # P0 bids high on high prizes, P1 bids low
-        prizes = list(range(1, NUM_CARDS + 1))
-        random.shuffle(prizes)
+        # Descending prizes (13,12,...,1) + P0 bids max, P1 bids min.
+        # P0 wins the first 6 rounds (prizes 13-8) for 63 pts;
+        # P1 wins the last 6 rounds (prizes 6-1) for 21 pts → P0 wins.
+        prizes = list(range(NUM_CARDS, 0, -1))
 
         for prize in prizes:
             state = apply_action(state, f"prize:{prize}")

@@ -38,12 +38,15 @@ Checkers is a classic two-player strategy board game played on an 8×8 board. Th
 ### Example Trajectory
 This shows the beginning of a checkers game.
 
-Step 0: current_player=0, legal_actions=["move_5_0_4_1", "move_5_2_4_1", "move_5_2_4_3", ...], rewards=[0.0, 0.0]
-  -> Action: "move_5_2_4_3"  # Red moves piece from (5,2) to (4,3)
-Step 1: current_player=1, legal_actions=["move_2_1_3_0", "move_2_1_3_2", ...], rewards=[0.0, 0.0]
-  -> Action: "move_2_3_3_4"  # Black moves piece from (2,3) to (3,4)
-Step 2: current_player=0, legal_actions=[...], rewards=[0.0, 0.0]
-  -> Action: "jump_4_3_2_5"  # Red jumps and captures black piece at (3,4)
+Step 0 (Player 0): The game begins. It is Player 0's turn (playing as Red). From the available valid diagonal moves, Player 0 chooses to move their piece from position (5, 2) to (4, 3).
+Step 1 (Player 1): It is Player 1's turn (playing as Black). Player 1 chooses to move their piece diagonally from position (2, 3) to (3, 4).
+Step 2 (Player 0): It is Player 0's turn again. Because Player 1's piece at (3, 4) is diagonally adjacent with an empty space behind it, Player 0 executes a jump. Player 0 moves their piece to (2, 5), capturing the Black piece, which is immediately removed from the board.
 ...
-Step N (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # Red captures all black pieces
+Step N (Terminal): Player 0 successfully captures the last remaining Black piece on the board. The game ends immediately. Player 0 receives a full win (+1.0), and Player 1 receives a loss (-1.0). No further actions can be taken.
+
+## Action String Specification
+Player actions:
+  - Simple move: format "move_<r1>_<c1>_<r2>_<c2>" where rows/cols are 0-indexed
+    e.g. "move_5_0_4_1"
+  - Jump (capture): format "jump_<r1>_<c1>_<r2>_<c2>" or multi-jump "jump_<r1>_<c1>_<r2>_<c2>_<r3>_<c3>..."
+    e.g. "jump_5_2_3_0", "jump_5_2_3_0_1_2"

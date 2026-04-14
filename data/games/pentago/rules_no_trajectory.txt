@@ -1,0 +1,46 @@
+## Pentago Game Rules
+
+Pentago is a two-player abstract strategy game played on a 6×6 board divided into four 3×3 quadrants. Each turn consists of placing a marble and then rotating one quadrant.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 uses 'x', Player 1 uses 'o')
+- **Board:** 6×6 grid divided into 4 quadrants (3×3 each)
+- **Quadrants:** Numbered 0-3:
+  - Quadrant 0: top-left (rows 0-2, cols 0-2)
+  - Quadrant 1: top-right (rows 0-2, cols 3-5)
+  - Quadrant 2: bottom-left (rows 3-5, cols 0-2)
+  - Quadrant 3: bottom-right (rows 3-5, cols 3-5)
+
+### 2. Game Flow
+Each turn consists of two mandatory parts:
+1. **Place:** Put your marble on any empty cell
+2. **Rotate:** Rotate any quadrant 90° clockwise (CW) or counter-clockwise (CCW)
+
+### 3. Winning Conditions
+- Get 5 of your marbles in a row (horizontally, vertically, or diagonally)
+- Win is checked AFTER the rotation
+- If both players get 5-in-a-row on the same turn, it's a draw
+- If the board fills with no winner, it's a draw
+
+### 4. Move Notation
+Moves are written as "mark(row,col)_rotate_Q_D" where:
+- mark is 'x' or 'o'
+- row, col are 0-indexed coordinates (0-5)
+- Q is quadrant number (0-3)
+- D is direction: "CW" (clockwise) or "CCW" (counter-clockwise)
+
+Example: "x(1,4)_rotate_2_CW" means Player 0 places at row 1, col 4, then rotates quadrant 2 clockwise.
+
+### 5. Strategic Notes
+- The rotation mechanic creates dynamic, shifting patterns
+- You must always rotate (even if it hurts your position)
+- Defending requires considering all possible rotation outcomes
+- Center cells can participate in more winning lines
+
+## Action String Specification
+Player actions: format "<mark>(<row>,<col>)_rotate_<quad>_<dir>"
+  - mark ∈ {x, o} (P0 uses x, P1 uses o)
+  - row, col are 0-indexed within the full 6×6 board
+  - quad ∈ {0, 1, 2, 3} (top-left, top-right, bottom-left, bottom-right)
+  - dir ∈ {CW, CCW}
+  - e.g. "x(0,0)_rotate_0_CW", "o(3,4)_rotate_3_CCW"

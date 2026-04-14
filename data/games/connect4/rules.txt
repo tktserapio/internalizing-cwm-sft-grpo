@@ -17,21 +17,17 @@ column you are dropping your mark into. For example, 'x3' means Player 0 ('x')
 drops their mark into the fourth column from the left (column index 3).
 
 ### Example Trajectory
-This shows the expected game state at each step (X wins vertical in column 0):
+Step 0 (Player 0): The game begins. It is Player 0's turn (playing as X). Player 0 chooses to drop their piece into the first column (column 0). The piece falls to the lowest available space at the bottom of the column.
+Step 1 (Player 1): It is Player 1's turn (playing as O). Player 1 chooses to drop their piece into the second column (column 1). It falls to the bottom of that column.
+Step 2 (Player 0): It is Player 0's turn again. Player 0 drops another piece into the first column (column 0), stacking it directly on top of their previous piece.
+Step 3 (Player 1): Player 1 drops another piece into the second column (column 1), stacking it on top of their previous piece.
+Step 4 (Player 0): Player 0 drops a third piece into the first column (column 0), continuing to build their vertical stack.
+Step 5 (Player 1): Player 1 drops a third piece into the second column (column 1).
+Step 6 (Player 0): Player 0 drops a fourth piece into the first column (column 0), completing a vertical line of four pieces.
+Step 7 (Terminal): By successfully connecting four of their pieces in a vertical line, Player 0 achieves the win condition. The game ends immediately. 
+Player 0 receives a full win (+1.0), and Player 1 receives a loss (-1.0). No further actions can be taken.
 
-Step 0: current_player=0, legal_actions=["x0", "x1", "x2", "x3", "x4", "x5", "x6"], rewards=[0.0, 0.0]
-  -> Action: "x0"
-Step 1: current_player=1, legal_actions=["o0", "o1", "o2", "o3", "o4", "o5", "o6"], rewards=[0.0, 0.0]
-  -> Action: "o1"
-Step 2: current_player=0, legal_actions=["x0", "x1", "x2", "x3", "x4", "x5", "x6"], rewards=[0.0, 0.0]
-  -> Action: "x0"
-Step 3: current_player=1, legal_actions=["o0", "o1", "o2", "o3", "o4", "o5", "o6"], rewards=[0.0, 0.0]
-  -> Action: "o1"
-Step 4: current_player=0, legal_actions=["x0", "x1", "x2", "x3", "x4", "x5", "x6"], rewards=[0.0, 0.0]
-  -> Action: "x0"
-Step 5: current_player=1, legal_actions=["o0", "o1", "o2", "o3", "o4", "o5", "o6"], rewards=[0.0, 0.0]
-  -> Action: "o1"
-Step 6: current_player=0, legal_actions=["x0", "x1", "x2", "x3", "x4", "x5", "x6"], rewards=[0.0, 0.0]
-  -> Action: "x0"
-Step 7 (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # X wins with 4 pieces stacked vertically in column 0
+## Action String Specification
+Player actions: format "<mark><col>" where mark ∈ {x, o} and col ∈ {0,1,2,3,4,5,6}
+  - P0 uses mark "x": ["x0", "x1", "x2", "x3", "x4", "x5", "x6"]
+  - P1 uses mark "o": ["o0", "o1", "o2", "o3", "o4", "o5", "o6"]

@@ -1,0 +1,62 @@
+## Chess Game Rules
+
+Chess is a two-player strategy board game played on an 8×8 board. This implementation includes all standard rules except threefold repetition.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 plays White, Player 1 plays Black)
+- **Board:** 8×8 grid with algebraic notation (a-h columns, 1-8 rows)
+- **White plays first**
+
+### 2. Pieces and Movement
+Each player starts with 16 pieces:
+- **King (K):** Moves one square in any direction
+- **Queen (Q):** Moves any number of squares horizontally, vertically, or diagonally
+- **Rook (R):** Moves any number of squares horizontally or vertically
+- **Bishop (B):** Moves any number of squares diagonally
+- **Knight (N):** Moves in an L-shape (2+1 squares); can jump over pieces
+- **Pawn (P):** Moves forward one square (or two from starting position); captures diagonally
+
+### 3. Special Moves
+- **Castling:** King moves two squares toward a rook; rook moves to other side of king. Requires: neither piece has moved, no pieces between them, king not in check and doesn't pass through check
+- **En Passant:** Pawn can capture an adjacent opponent pawn that just moved two squares
+- **Promotion:** Pawn reaching the opposite end promotes to Q, R, B, or N
+
+### 4. Check and Checkmate
+- **Check:** King is under attack
+- **Checkmate:** King is in check with no legal escape moves (game ends, attacker wins)
+- **Stalemate:** Player to move has no legal moves but is not in check (draw)
+
+### 5. Draw Conditions
+- Stalemate
+- 50-move rule (50 moves without pawn move or capture)
+- Insufficient material (K vs K, K+B vs K, K+N vs K)
+
+### 6. Move Notation
+Standard algebraic notation with underscores:
+- **Piece_from_to:** e.g., "N_g1_f3" (Knight from g1 to f3)
+- **Pawn_from_to:** e.g., "P_e2_e4" (Pawn from e2 to e4)
+- **Castling:** "O-O" (kingside), "O-O-O" (queenside)
+- **Promotion:** "P_e7_e8_Q" (pawn promotes to queen)
+- **Capture:** Same notation (captured piece is implicit)
+
+### 7. Board Layout
+White pieces start on rows 1-2, Black on rows 7-8.
+Initial position (White's view from bottom):
+```
+8: r n b q k b n r  (Black pieces)
+7: p p p p p p p p
+6: . . . . . . . .
+5: . . . . . . . .
+4: . . . . . . . .
+3: . . . . . . . .
+2: P P P P P P P P
+1: R N B Q K B N R  (White pieces)
+   a b c d e f g h
+```
+
+## Action String Specification
+Player actions: format "<piece>_<from>_<to>" for regular moves, "<piece>_<from>_<to>_<promo>" for pawn promotion
+  - Piece codes: P (pawn), N (knight), B (bishop), R (rook), Q (queen), K (king)
+  - Squares use algebraic notation: a1–h8
+  - e.g. "P_e2_e4", "N_g1_f3", "B_f1_c4", "P_e7_e8_Q" (promotion)
+Castling: "O-O" (kingside), "O-O-O" (queenside)

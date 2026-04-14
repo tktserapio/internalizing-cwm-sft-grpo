@@ -1,14 +1,18 @@
 import argparse
 import importlib.util
+import os
+import sys
 import random
 import copy
 import json
 import inspect
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import IMPERFECT_INFO_GAMES
+
 
 def load_module(path):
-    """Load a Python module from path, returning (module, error)."""
     try:
         # First check syntax by compiling
         with open(path) as f:
@@ -69,20 +73,20 @@ class EvaluationResult:
     def overall_score(self):
         if not self.tiers:
             return 0.0
-        scores = [t.score for t in self.tiers.values() if t.results]
+        scores = []
+        for name, t in self.tiers.items():
+            if not t.results:
+                continue
+            # Skip information tier for perfect-info games
+            if name == "information" and self.game not in IMPERFECT_INFO_GAMES:
+                continue
+            scores.append(t.score)
         return sum(scores) / len(scores) if scores else 0.0
 
 
+# tier 1
 def test_static(module, path):
-    """
-    Tier 1: Static Analysis (always 7 tests)
-    - syntax: Code compiles without SyntaxError
-    - api_complete: All required methods exist
-    - types_correct: Return types are correct (dict, list, int, etc.)
-    """
     tier = TierResult("1. Static")
-
-    # Syntax already checked during load, if we got here it passed
     tier.add("syntax", True, "compiles")
 
     required = ['get_initial_state', 'apply_action', 'get_current_player',
@@ -91,7 +95,6 @@ def test_static(module, path):
     tier.add("api_complete", len(missing) == 0,
              f"missing: {missing}" if missing else "ok")
 
-    # Type checks - always run all, fail if API incomplete
     if missing:
         tier.add("initial_state_type", False, "api incomplete")
         tier.add("actions_type", False, "api incomplete")
@@ -104,7 +107,6 @@ def test_static(module, path):
     tier.add("initial_state_type", err is None and isinstance(state, dict),
              err or ("dict" if isinstance(state, dict) else type(state).__name__))
 
-    # Even if state is None, still run all checks (they'll fail)
     if state is None:
         tier.add("actions_type", False, "no state")
         tier.add("rewards_type", False, "no state")
@@ -132,13 +134,6 @@ def test_static(module, path):
 
 
 def test_dynamics(module, num_games=100):
-    """
-    Tier 2: Runtime Dynamics and Fuzzing
-    - no_crash: No exceptions during 100 random trajectories
-    - immutable: apply_action returns new state, original unchanged
-    - determinism: get_legal_actions/get_observations return same result on repeated calls
-    - terminal_empty: Terminal states have empty legal actions
-    """
     tier = TierResult("2. Dynamics")
 
     no_crash = 0
@@ -201,85 +196,19 @@ def test_dynamics(module, num_games=100):
     return tier
 
 
-def test_rewards(module, num_games=100):
-    """
-    Tier 3: Rewards
-    - sparse: Rewards are [0, 0, ...] for all non-terminal states
-    - dimensions: len(rewards) matches number of players
-    - zero_sum: sum(rewards) == 0 at terminal states
-    """
-    tier = TierResult("3. Rewards")
+def test_information(module, num_games=100, game_name=None):
+    tier = TierResult("3. Information")
 
-    try:
-        num_players = len(module.get_rewards(module.get_initial_state()))
-    except:
-        num_players = 2
-
-    sparse_games = 0
-    correct_dim_games = 0
-    zero_sum_games = 0
-
-    for _ in range(num_games):
-        try:
-            state = module.get_initial_state()
-            game_sparse = True
-            game_correct_dim = True
-            game_zero_sum = True
-
-            for _ in range(500):
-                player = module.get_current_player(state)
-                rewards = module.get_rewards(state)
-
-                # Dimension check
-                if not isinstance(rewards, list) or len(rewards) != num_players:
-                    game_correct_dim = False
-
-                if player == -4 or not module.get_legal_actions(state):
-                    # Terminal: check zero-sum
-                    if isinstance(rewards, list) and abs(sum(rewards)) > 1e-9:
-                        game_zero_sum = False
-                    break
-                else:
-                    # Non-terminal: rewards should be zero
-                    if not (isinstance(rewards, list) and all(r == 0 for r in rewards)):
-                        game_sparse = False
-
-                actions = module.get_legal_actions(state)
-                if not actions:
-                    break
-                state = module.apply_action(state, random.choice(actions))
-
-            if game_sparse:
-                sparse_games += 1
-            if game_correct_dim:
-                correct_dim_games += 1
-            if game_zero_sum:
-                zero_sum_games += 1
-        except:
-            pass
-
-    n = num_games
-    tier.add("sparse", sparse_games == n, f"{sparse_games}/{n}")
-    tier.add("dimensions", correct_dim_games == n, f"{correct_dim_games}/{n}")
-    tier.add("zero_sum", zero_sum_games == n, f"{zero_sum_games}/{n}")
-
-    return tier
-
-
-def test_information(module, num_games=100):
-    """
-    Tier 4: Information (for imperfect info games with resample_history)
-    - resample_legal: resample_history returns valid legal moves
-    - obs_reconstruction: Replaying resampled history gives same observations
-    - action_consistency: Resampled actions match original player actions
-    - resample_complete: Resampler covers all observations (doesn't stop early or add extra)
-    """
-    tier = TierResult("4. Information")
-
-    # Check if this is an imperfect info game
     has_resample = hasattr(module, 'resample_history')
+    requires_resample = game_name in IMPERFECT_INFO_GAMES if game_name else False
 
     if not has_resample:
+        if requires_resample:
+            tier.add("resample_legal", False, "resample_history not implemented")
+            tier.add("obs_reconstruction", False, "resample_history not implemented")
+            tier.add("action_consistency", False, "resample_history not implemented")
+            tier.add("resample_complete", False, "resample_history not implemented")
+            return tier
         tier.add("perfect_info", True, "N/A - no resample_history")
         return tier
 
@@ -295,7 +224,6 @@ def test_information(module, num_games=100):
             state = module.get_initial_state()
             history = []
 
-            # Build obs_action_history for the selected player
             for _ in range(200):
                 player = module.get_current_player(state)
 
@@ -313,61 +241,59 @@ def test_information(module, num_games=100):
                         history.append((copy.deepcopy(obs[pid]), action))
 
                 state = module.apply_action(state, action)
+        except Exception:
+            continue
 
-            if len(history) < 1:
-                continue
+        if len(history) < 1:
+            continue
 
-            runs += 1
+        runs += 1
 
-            # Resample and replay (matches reference test logic)
+        try:
             resampled = module.resample_history(copy.deepcopy(history), pid)
 
             if not isinstance(resampled, list):
                 continue
 
-            # Replay resampled history and check against original obs/actions
-            replay = module.get_initial_state()
-            hist_iter = iter(history)
-            exp_obs, exp_action = next(hist_iter)
+            # Replay resampled actions from initial state, checking against
+            # the recorded obs/action history at each player turn.
+            state = module.get_initial_state()
+            obs_action_iter = iter(history)
+            exp_obs, exp_action = next(obs_action_iter, (None, None))
 
             all_legal = True
             all_obs_match = True
             all_actions_match = True
 
             for action in resampled:
-                cp = module.get_current_player(replay)
-                if cp == -4:
+                if module.get_current_player(state) == -4:
                     break
 
-                legal_actions = module.get_legal_actions(replay)
-                if action not in legal_actions:
+                if action not in module.get_legal_actions(state):
                     all_legal = False
+                    all_obs_match = False
+                    all_actions_match = False
                     break
 
-                if cp == pid:
-                    # Check observation matches
-                    actual_obs = module.get_observations(replay)[pid]
-                    if actual_obs != exp_obs:
-                        all_obs_match = False
+                if module.get_current_player(state) == pid:
+                    if exp_obs is None:
+                        all_actions_match = False
+                        break
 
-                    # Check action matches
+                    if module.get_observations(state)[pid] != exp_obs:
+                        all_obs_match = False
                     if action != exp_action:
                         all_actions_match = False
 
-                    # Advance to next expected obs/action
-                    try:
-                        exp_obs, exp_action = next(hist_iter)
-                    except StopIteration:
-                        exp_obs, exp_action = None, None
+                    exp_obs, exp_action = next(obs_action_iter, (None, None))
 
-                replay = module.apply_action(replay, action)
+                state = module.apply_action(state, action)
 
-            # Check all observations were consumed (completeness)
-            try:
-                next(hist_iter)
-                game_complete = False  # Still had unconsumed observations
-            except StopIteration:
-                game_complete = True
+            # All history entries must have been consumed
+            game_complete = all_legal and (exp_obs is None)
+            if not game_complete:
+                all_obs_match = False
+                all_actions_match = False
 
             if all_legal:
                 legal_games += 1
@@ -378,7 +304,7 @@ def test_information(module, num_games=100):
             if game_complete:
                 complete_games += 1
 
-        except:
+        except Exception:
             pass
 
     if runs == 0:
@@ -393,8 +319,43 @@ def test_information(module, num_games=100):
     return tier
 
 
+def load_scenarios(game_name):
+    scenario_path = os.path.join("data/games", game_name, "scenarios.py")
+    if not os.path.exists(scenario_path):
+        return None, None
+    try:
+        spec = importlib.util.spec_from_file_location("scenarios", scenario_path)
+        sm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sm)
+        return sm.SCENARIOS, None
+    except Exception as e:
+        return None, str(e)
+
+
+def test_scenarios(module, game_name):
+    scenarios, err = load_scenarios(game_name)
+
+    if scenarios is None and err is None:
+        return None  # no scenarios file — skip this tier
+
+    tier = TierResult("4. Scenarios")
+
+    if err:
+        tier.add("load_scenarios", False, err)
+        return tier
+
+    runner_path = os.path.join(os.path.dirname(__file__), "scenario_runner.py")
+    spec = importlib.util.spec_from_file_location("scenario_runner", runner_path)
+    sr_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sr_mod)
+    sr = sr_mod.run_scenarios(module, scenarios)
+    for d in sr["details"]:
+        tier.add(d["name"], d["passed"], d["failure"] or "ok")
+
+    return tier
+
+
 def make_failed_tiers(error_msg):
-    """Create all tiers with all tests failed (for consistent denominators)."""
     static = TierResult("1. Static")
     static.add("syntax", False, error_msg)
     static.add("api_complete", False, "load failed")
@@ -410,19 +371,13 @@ def make_failed_tiers(error_msg):
     dynamics.add("determinism", False, "load failed")
     dynamics.add("terminal_empty", False, "load failed")
 
-    rewards = TierResult("3. Rewards")
-    rewards.add("sparse", False, "load failed")
-    rewards.add("dimensions", False, "load failed")
-    rewards.add("zero_sum", False, "load failed")
-
-    information = TierResult("4. Information")
+    information = TierResult("3. Information")
     information.add("resample_legal", False, "load failed")
     information.add("obs_reconstruction", False, "load failed")
     information.add("action_consistency", False, "load failed")
     information.add("resample_complete", False, "load failed")
-    information.add("privacy", False, "load failed")
 
-    return static, dynamics, rewards, information
+    return static, dynamics, information
 
 
 def run_evaluation(candidate_path, game_name, num_games=100, seed=None, quiet=False):
@@ -438,11 +393,17 @@ def run_evaluation(candidate_path, game_name, num_games=100, seed=None, quiet=Fa
 
     if err:
         # Failed to load - all tiers fail with consistent test counts
-        static, dynamics, rewards, information = make_failed_tiers(err)
+        static, dynamics, information = make_failed_tiers(err)
         result.tiers["static"] = static
         result.tiers["dynamics"] = dynamics
-        result.tiers["rewards"] = rewards
         result.tiers["information"] = information
+        # Scenarios tier: mark each scenario as failed (module wouldn't load)
+        scenarios, _ = load_scenarios(game_name)
+        if scenarios is not None:
+            scenarios_tier = TierResult("4. Scenarios")
+            for s in scenarios:
+                scenarios_tier.add(s["name"], False, "load failed")
+            result.tiers["scenarios"] = scenarios_tier
         return result
 
     if not quiet:
@@ -450,8 +411,10 @@ def run_evaluation(candidate_path, game_name, num_games=100, seed=None, quiet=Fa
 
     result.tiers["static"] = test_static(module, candidate_path)
     result.tiers["dynamics"] = test_dynamics(module, num_games)
-    result.tiers["rewards"] = test_rewards(module, num_games)
-    result.tiers["information"] = test_information(module, num_games)
+    result.tiers["information"] = test_information(module, num_games, game_name=game_name)
+    scenarios_tier = test_scenarios(module, game_name)
+    if scenarios_tier is not None:
+        result.tiers["scenarios"] = scenarios_tier
 
     return result
 

@@ -174,9 +174,6 @@ def apply_action(state: State, action: Action) -> State:
 
 def get_rewards(state: State) -> List[float]:
     """Returns rewards. Zero-sum."""
-    if state["status"] == "ongoing":
-        return [0.0, 0.0]
-    
     if state["status"] == "draw":
         return [0.0, 0.0]
         

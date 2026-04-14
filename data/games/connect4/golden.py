@@ -72,9 +72,6 @@ def get_player_name(player_id: int) -> str:
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player: +1 for win, -1 for loss, 0 otherwise."""
-    if not state["is_terminal"]:
-        return [0.0, 0.0]
-    
     winner = state["winner"]
     if winner is None:
         return [0.0, 0.0] # Draw

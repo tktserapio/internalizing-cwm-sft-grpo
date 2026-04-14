@@ -67,3 +67,8 @@ Group {2, 3, 4, 7} touches all three sides.
 - Corner cells are valuable since they touch two sides.
 - The center is strategically important for connecting distant edges.
 - Like Hex, Y favors the first player, so a swap rule is sometimes used.
+
+## Action String Specification
+Player actions: format "<row>,<col>" where row and col are 0-indexed integers
+  - e.g. "0,0", "4,9", "9,4"
+  - Both players use the same format (player identity tracked via turn order)

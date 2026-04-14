@@ -33,7 +33,7 @@ def apply_action(state: State, action: Action) -> State:
         return new_state
 
     # --- Player Logic ---
-    if action == "F":
+    if action == "Fold":
         new_state["is_terminal"] = True
         new_state["current_player"] = TERMINAL_ID
         return new_state
@@ -42,23 +42,23 @@ def apply_action(state: State, action: Action) -> State:
     n = len(bets)
 
     # State Transitions (Standard Kuhn)
-    # 1. C -> P1
-    # 2. R -> P1
-    # 3. CC -> Showdown
-    # 4. CR -> P0
-    # 5. RC -> Showdown
-    # 6. CRC -> Showdown
-    
+    # 1. Call -> P1
+    # 2. Raise -> P1
+    # 3. Call,Call -> Showdown
+    # 4. Call,Raise -> P0
+    # 5. Raise,Call -> Showdown
+    # 6. Call,Raise,Call -> Showdown
+
     if n == 1:
         new_state["current_player"] = 1
     elif n == 2:
-        if bets == ["C", "R"]:
+        if bets == ["Call", "Raise"]:
             new_state["current_player"] = 0
         else:
-            new_state["is_terminal"] = True # CC or RC
+            new_state["is_terminal"] = True # Call,Call or Raise,Call
             new_state["current_player"] = TERMINAL_ID
     elif n == 3:
-        new_state["is_terminal"] = True # CRC
+        new_state["is_terminal"] = True # Call,Raise,Call
         new_state["current_player"] = TERMINAL_ID
 
     return new_state
@@ -74,22 +74,21 @@ def get_player_name(player_id: int) -> str:
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player from their last action."""
-    if not state["is_terminal"]:
+    bets = state["history"][1:]
+    if not state["cards"] or not bets:
         return [0.0, 0.0]
 
-    bets = state["history"][1:]
-    
     # 1. Fold Scenario (+1 to winner)
-    if bets[-1] == "F":
+    if bets[-1] == "Fold":
         loser = (len(bets) - 1) % 2
         winner = 1 - loser
         return [1.0 if i == winner else -1.0 for i in range(2)]
 
     # 2. Showdown Scenario
-    # Payoff is 2 if there was a bet (R), else 1
+    # Payoff is 2 if there was a bet (Raise), else 1
     p0, p1 = state["cards"]
     winner = 0 if RANKS[p0] > RANKS[p1] else 1
-    payoff = 2.0 if "R" in bets else 1.0
+    payoff = 2.0 if "Raise" in bets else 1.0
     
     return [payoff if i == winner else -payoff for i in range(2)]
 
@@ -103,19 +102,19 @@ def get_legal_actions(state: State) -> List[Action]:
     n = len(bets)
     
     # Rule: Cannot Fold if you can Check.
-    if n == 0: 
-        return ["C", "R"] # P0 Start
-    
+    if n == 0:
+        return ["Call", "Raise"]  # P0 Start
+
     last_action = bets[-1]
-    
+
     if n == 1:
         # P1 response to P0
-        if last_action == "C": return ["C", "R"] # Check -> Check/Bet
-        if last_action == "R": return ["F", "C"] # Bet -> Fold/Call
-        
-    if n == 2: 
-        # P0 response to P1 Raise (history must be C, R)
-        return ["F", "C"]
+        if last_action == "Call": return ["Call", "Raise"]  # Check -> Check/Bet
+        if last_action == "Raise": return ["Fold", "Call"]  # Bet -> Fold/Call
+
+    if n == 2:
+        # P0 response to P1 Raise (history must be Call, Raise)
+        return ["Fold", "Call"]
         
     return []
 

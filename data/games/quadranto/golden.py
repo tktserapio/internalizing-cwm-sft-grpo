@@ -148,137 +148,95 @@ def get_observations(state: State) -> List[PlayerObservation]:
         make_obs(state["p1_loc"], state["p0_loc"])
     ]
 
-def _cells_that_can_reach_quadrant(start_quadrant: int, target_quadrant: int) -> List[Tuple[int, int]]:
-    """Returns cells in start_quadrant that can reach target_quadrant in one move."""
-    result = []
-    for cell in QUADRANTS[start_quadrant]:
-        for name, (dr, dc) in MOVES.items():
-            nr, nc = cell[0] + dr, cell[1] + dc
-            if 0 <= nr < GRID_SIZE and 0 <= nc < GRID_SIZE:
-                if get_quadrant_id(nr, nc) == target_quadrant:
-                    result.append(cell)
-                    break
-    return result if result else QUADRANTS[start_quadrant]  # Fallback to any cell
-
-
 def resample_history(obs_action_history: List[Tuple[PlayerObservation, Optional[Action]]], player_id: int) -> List[Action]:
-    """
-    Reconstructs a valid history of actions (including Chance and Opponent)
-    that is consistent with the `player_id`'s observations.
+    """Reconstruct a valid action history consistent with player_id's observations.
+
+    Uses retry-based sampling: randomly picks opponent starting cell and
+    opponent moves that satisfy quadrant constraints. Retries on dead ends.
     """
     if not obs_action_history:
         return []
 
-    # 1. Parse Start Positions
     first_obs = obs_action_history[0][0]
     my_start = first_obs["loc"]
+    opp_id = 1 - player_id
+    opp_key = f"p{opp_id}_loc"
 
-    # P0 always starts in quadrant 1 (top-left), P1 always starts in quadrant 4 (bottom-right)
-    if player_id == 0:
-        p0_start = my_start
-        # For P0's first observation, opponent hasn't moved yet, so first_obs shows P1's starting quadrant
-        # But P1 must start in quadrant 4, so just sample from there
-        # However, we need P1 to potentially reach a different quadrant after moving
-        # Look at the second observation (if exists) to see where P1 should be after their first move
-        if len(obs_action_history) > 1:
-            second_obs = obs_action_history[1][0]
-            target_quad = second_obs["opponent_quadrant"]
-            valid_starts = _cells_that_can_reach_quadrant(4, target_quad)
-            p1_start = random.choice(valid_starts)
+    n_obs = len(obs_action_history)
+
+    for _attempt in range(1000):
+        # Pick starting positions (P0 in Q1, P1 in Q4)
+        if player_id == 0:
+            p0_start, p1_start = my_start, random.choice(QUADRANTS[4])
         else:
-            p1_start = random.choice(QUADRANTS[4])
-    else:
-        # For player 1: the first observation is AFTER P0 has already moved once
-        # P0 must start in quadrant 1
-        # first_obs["opponent_quadrant"] shows where P0 is after their first move
-        target_quad = first_obs["opponent_quadrant"]
-        valid_starts = _cells_that_can_reach_quadrant(1, target_quad)
-        p0_start = random.choice(valid_starts)
-        p1_start = my_start
+            p0_start, p1_start = random.choice(QUADRANTS[1]), my_start
 
-    history = [
-        f"place_p0:{p0_start[0]},{p0_start[1]}",
-        f"place_p1:{p1_start[0]},{p1_start[1]}"
-    ]
-    
-    # 3. Initialize State
-    state = get_initial_state()
-    for act in history:
-        state = apply_action(state, act)
+        history = [
+            f"place_p0:{p0_start[0]},{p0_start[1]}",
+            f"place_p1:{p1_start[0]},{p1_start[1]}"
+        ]
 
-    # 4. Decoupled Simulation Loop
-    # We maintain an iterator for the evidence (observations)
-    history_iter = iter(obs_action_history)
-    
-    # Grab the first piece of evidence to start
-    try:
-        current_obs, current_action = next(history_iter)
-    except StopIteration:
-        return history
+        state = get_initial_state()
+        for act in history:
+            state = apply_action(state, act)
 
-    while state["current_player"] != -4:
-        current_actor = get_current_player(state)
+        obs_idx = 0
+        current_obs, current_action = obs_action_history[0]
+        dead_end = False
 
-        # CASE A: It is OUR turn (Player ID)
-        if current_actor == player_id:
-            # We must take the action recorded in the history
-            if current_action is None:
-                # We reached the end of the recording, but the game expects a move.
-                # Stop here.
-                break
-                
-            chosen_action = current_action
-            history.append(chosen_action)
-            state = apply_action(state, chosen_action)
-            
-            # Advance the evidence iterator
-            try:
-                current_obs, current_action = next(history_iter)
-            except StopIteration:
-                # No more evidence left. 
-                # If the game isn't over, we stop simulation here.
-                current_action = None 
-                # We continue the loop one last time if the opponent needs to move,
-                # otherwise we break.
-                if get_current_player(state) == player_id:
+        while state["current_player"] != -4:
+            cp = get_current_player(state)
+
+            if cp == player_id:
+                if current_action is None:
+                    break
+                history.append(current_action)
+                state = apply_action(state, current_action)
+                obs_idx += 1
+                if obs_idx >= n_obs:
+                    current_action = None
+                    if get_current_player(state) == player_id:
+                        break
+                else:
+                    current_obs, current_action = obs_action_history[obs_idx]
+            else:
+                # Opponent's turn — pick a move landing in the required quadrant
+                legal = get_legal_actions(state)
+                my_key = f"p{player_id}_loc"
+                my_loc = state[my_key]
+
+                if current_action is not None:
+                    target_quad = current_obs["opponent_quadrant"]
+                    candidates = [
+                        a for a in legal
+                        if get_quadrant_id(*apply_action(state, a)[opp_key]) == target_quad
+                    ]
+                    # Always prevent opponent from landing on player (opponent catch).
+                    # Only prevent opponent from being at player's next position
+                    # when there are more observations after the current one
+                    # (at the last obs, player catching opponent is the expected ending).
+                    avoid = {my_loc}
+                    if obs_idx < n_obs - 1 and current_action in MOVES:
+                        dr, dc = MOVES[current_action]
+                        avoid.add((my_loc[0] + dr, my_loc[1] + dc))
+                    safe = [a for a in candidates
+                            if apply_action(state, a)[opp_key] not in avoid]
+                    if safe:
+                        candidates = safe
+                    elif candidates:
+                        dead_end = True
+                        break
+                else:
+                    candidates = legal
+
+                if not candidates:
+                    dead_end = True
                     break
 
-        # CASE B: It is the OPPONENT'S turn
-        else:
-            # We must hallucinate a move.
-            # CONSTRAINT: The move must result in the state seen in 'current_obs'.
-            # Note: 'current_obs' is the observation for the *upcoming* player turn.
-            
-            legal = get_legal_actions(state)
-            valid_actions = []
-            
-            # If we have a future observation, use it to constrain the opponent
-            # If current_action is None, it means we ran out of history, 
-            # so we can't constrain the opponent (any move is fine).
-            if current_action is not None:
-                target_quad = current_obs["opponent_quadrant"]
-                
-                for act in legal:
-                    # Tentatively apply opponent move
-                    next_state = apply_action(state, act)
-                    
-                    # Check where the opponent ended up
-                    if player_id == 0:
-                        sim_opp_loc = next_state["p1_loc"]
-                    else:
-                        sim_opp_loc = next_state["p0_loc"]
-                    
-                    # Does this match what we see in the NEXT observation?
-                    if get_quadrant_id(*sim_opp_loc) == target_quad:
-                        valid_actions.append(act)
-            
-            # Fallback if no valid actions found (rare, implies inconsistent history) 
-            # or if we are at the end of history (no constraint).
-            if not valid_actions:
-                valid_actions = legal
+                history.append(random.choice(candidates))
+                state = apply_action(state, history[-1])
 
-            chosen_action = random.choice(valid_actions)
-            history.append(chosen_action)
-            state = apply_action(state, chosen_action)
+        if not dead_end:
+            return history
 
-    return history
+    return history  # best effort after retries

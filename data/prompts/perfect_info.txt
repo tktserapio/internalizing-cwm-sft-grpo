@@ -23,7 +23,7 @@ def get_current_player(state: State) -> int:
 def get_player_name(player_id: int) -> str:
     """Returns the name of the player."""
 def get_rewards(state: State) -> list[float]:
-    """Returns the rewards per player. Non-zero only at terminal states."""
+    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
 def get_legal_actions(state: State) -> list[Action]:
     """Returns legal actions for current state. Empty list if terminal."""
 def get_observations(state: State) -> list[PlayerObservation]:
@@ -31,10 +31,10 @@ def get_observations(state: State) -> list[PlayerObservation]:
 #END FUNCTION SIGNATURE
 
 Use the type definitions.
+All actions returned by get_legal_actions and accepted by apply_action must use ONLY the action strings specified in the game description above. Do not invent new action formats.
 Ensure to import all libraries used.
 Do not leave placeholders.
 Do not repeat the function signature.
-Only produce code that is compact.
 Do write comments explaining what the code does.
 Do use helper functions to reduce code duplication.
 Do NOT wrap the functions in a class. Define them at the module level.

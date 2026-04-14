@@ -57,13 +57,17 @@ Player 1 (moving clockwise toward point 24):
 
 ### Example Trajectory
 
-Step 0 (CHANCE): current_player=-1, legal_actions=["D_1_1", "D_1_2", ..., "D_6_6"], rewards=[0.0, 0.0]
-  -> Action: "D_3_1"  # Roll 3 and 1
-Step 1: current_player=0, legal_actions=["8/5,6/5", "24/21,24/23", ...], rewards=[0.0, 0.0]
-  -> Action: "8/5,6/5"  # Use 3 and 1 to make the 5-point
-Step 2 (CHANCE): current_player=-1, legal_actions=["D_1_1", ...], rewards=[0.0, 0.0]
-  -> Action: "D_6_4"
-Step 3: current_player=1, legal_actions=[...], rewards=[0.0, 0.0]
+Step 0 (Chance): The dice are rolled. The result is a 3 and a 1.
+Step 1 (Player 0): It is Player 0's turn. Using the 3 and the 1, Player 0 moves one checker from point 8 to point 5, and another checker from point 6 to point 5, securing the 5-point.
+Step 2 (Chance): The dice are rolled for the next player. The result is a 6 and a 4.
+Step 3 (Player 1): It is Player 1's turn. [Player 1 makes their move...]
 ...
-Step N (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # P0 bears off all checkers first
+Step N (Terminal): Player 0 successfully bears off all their checkers before Player 1. The game ends. 
+Player 0 receives a full win (+1.0), and Player 1 receives a loss (-1.0).
+
+## Action String Specification
+Player actions: format "<from>/<to>" for a single move, "<from>/off" to bear off, or comma-separated for multiple moves
+  - e.g. "8/5", "6/off", "8/5,6/5" (two moves in one turn)
+  - "pass" when no moves are available
+Chance actions: format "D_<d1>_<d2>" where d1,d2 ∈ {1,2,3,4,5,6}
+  - e.g. "D_3_5", "D_6_6"

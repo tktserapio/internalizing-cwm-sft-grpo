@@ -1,0 +1,52 @@
+## Dots and Boxes Game Rules
+
+Dots and Boxes is a classic pencil-and-paper game where players take turns drawing lines to complete boxes.
+
+### 1. Setup & Preliminaries
+- **Players:** 2 (Player 0 and Player 1)
+- **Board:** 3×3 grid of dots (creates a 2×2 grid of potential boxes)
+- **Lines:** Players draw horizontal or vertical lines between adjacent dots
+- **Player 0 goes first**
+
+### 2. Turn Structure
+On your turn:
+1. Draw exactly one line between two adjacent dots (horizontally or vertically)
+2. If your line completes one or more boxes, you claim those boxes AND take another turn
+3. If your line doesn't complete any box, your turn ends
+
+### 3. Completing Boxes
+- A box is completed when all four of its edges are drawn
+- The player who draws the fourth edge claims the box
+- Completing a box earns you an extra turn (you can chain multiple completions)
+
+### 4. Winning
+- Game ends when all lines are drawn (all boxes completed)
+- Player with more boxes wins (+1.0, opponent -1.0)
+- If equal boxes, it's a draw (both get 0.0)
+
+### 5. Board Layout
+Dots are arranged in a grid. For a 3×3 dot grid:
+```
+0---1---2
+|   |   |
+3---4---5
+|   |   |
+6---7---8
+```
+This creates 4 potential boxes (2×2).
+
+### 6. Move Notation
+Lines are specified as "h_R_C" (horizontal) or "v_R_C" (vertical):
+- **h_R_C:** Horizontal line from dot (R,C) to dot (R,C+1)
+- **v_R_C:** Vertical line from dot (R,C) to dot (R+1,C)
+
+For a 3×3 dot grid:
+- Horizontal lines: h_0_0, h_0_1, h_1_0, h_1_1, h_2_0, h_2_1
+- Vertical lines: v_0_0, v_0_1, v_0_2, v_1_0, v_1_1, v_1_2
+
+## Action String Specification
+Player actions:
+  - Horizontal line: format "h_<row>_<col>" where row,col are 0-indexed
+    e.g. "h_0_0", "h_2_1"
+  - Vertical line: format "v_<row>_<col>"
+    e.g. "v_0_0", "v_1_2"

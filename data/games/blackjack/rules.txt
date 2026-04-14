@@ -70,40 +70,22 @@ When dealer stands, game resolves and current_player becomes -4.
 - **Dealer actions:** H, S
 
 ### Example Trajectory
-This shows the expected game state at each step with explicit chance nodes for each card.
+Step 0 (Chance): The game begins. A card is dealt from the deck to the player: the 10 of Spades.
+Step 1 (Chance): A card is dealt face-up to the dealer: the 7 of Hearts.
+Step 2 (Chance): A second card is dealt to the player: the 5 of Diamonds. The player's hand now totals 15.
+Step 3 (Chance): A second card is dealt face-down to the dealer (the hole card): the 9 of Clubs.
+Step 4 (Player): It is the player's turn to act. From the initial available options (Hit, Stand, Double Down, Surrender, or Split), the player chooses to Hit.
+Step 5 (Chance): A card is dealt to the player: the 4 of Hearts. The player's hand now totals 19.
+Step 6 (Player): It is the player's turn again. Having already taken a hit, the player's options are now restricted to Hit or Stand. The player chooses to Stand.
+Step 7 (Dealer): It is the dealer's turn. The dealer reveals their hidden hole card, showing a total of 16 (7 of Hearts + 9 of Clubs). Following standard rules, the dealer is forced to Hit.
+Step 8 (Chance): A card is dealt to the dealer: the King of Diamonds. The dealer's hand totals 26, causing them to bust.
+Step 9 (Terminal): Because the dealer busted, the player wins. The game ends immediately. The player receives a full win (+1.0), and the dealer receives a loss (-1.0).
 
-Step 0 (CHANCE - deal_p1): current_player=-1, phase="deal_p1"
-  legal_actions=["deal:2s", "deal:2h", ..., "deal:Ac"]  # All cards in deck
-  -> Action: "deal:Ts"  # Deal 10 of spades to player
-
-Step 1 (CHANCE - deal_d1): current_player=-1, phase="deal_d1"
-  legal_actions=["deal:2s", "deal:2h", ..., "deal:Ac"]  # Remaining cards
-  -> Action: "deal:7h"  # Deal 7 of hearts to dealer (upcard)
-
-Step 2 (CHANCE - deal_p2): current_player=-1, phase="deal_p2"
-  -> Action: "deal:5d"  # Deal 5 of diamonds to player (player has Ts, 5d = 15)
-
-Step 3 (CHANCE - deal_d2): current_player=-1, phase="deal_d2"
-  -> Action: "deal:9c"  # Deal 9 of clubs to dealer (hole card, hidden)
-
-Step 4 (PLAYER): current_player=0, phase="play"
-  legal_actions=["H", "S", "D", "R", "P"]
-  -> Action: "H"  # Player hits
-
-Step 5 (CHANCE - p_hit): current_player=-1, phase="p_hit"
-  legal_actions=["deal:2s", ...]  # Remaining cards
-  -> Action: "deal:4h"  # Player receives 4h (now has 19)
-
-Step 6 (PLAYER): current_player=0, phase="play"
-  legal_actions=["H", "S"]  # No more D/R/P after initial 2 cards
-  -> Action: "S"  # Player stands with 19
-
-Step 7 (DEALER): current_player=1, phase="play"
-  legal_actions=["H"]  # Dealer has 16, must hit
-  -> Action: "H"
-
-Step 8 (CHANCE - d_hit): current_player=-1, phase="d_hit"
-  -> Action: "deal:Kd"  # Dealer receives Kd (now has 26, busts)
-
-Step 9 (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # Player wins because dealer busted.
+## Action String Specification
+Player actions: ["H", "S", "D", "R", "P"]
+  - "H": Hit (draw a card)
+  - "S": Stand (end turn)
+  - "D": Double down
+  - "R": Surrender
+  - "P": Split (when holding a pair)
+Chance actions: format "deal:<rank><suit>" e.g. "deal:Ah", "deal:Tc", "deal:2s"

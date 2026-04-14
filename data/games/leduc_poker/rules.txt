@@ -54,35 +54,18 @@ If neither player folds, a showdown occurs after Round 2 betting.
 **7. Winning**
 A player wins the pot either by being the only one left after the other folds, or by having the best hand at showdown.
 
-EXAMPLE TRAJECTORY (Standard Match)
-    Step 0 (CHANCE - Private Deal): current_player: -1 legal_actions: ["deal:J", "deal:Q", "deal:K"] -> Action: "deal:J" (P1 receives Jack) -> Action: "deal:K" (P2 receives King)
+**8. Example Trajectory**
+Step 0 (Chance/Setup): The game begins. The system randomly and secretly deals one private card to each player. Player 0 receives a Jack, and Player 1 receives a King. Each player can only see their own private card.
+Step 1 (Player 0 - Pre-Flop): The first betting round begins. Forced blind bets have automatically been posted (Player 0 posted a small blind of 1 unit; Player 1 posted a big blind of 2 units). To stay in the hand, Player 0 must match the big blind. Player 0 chooses to Call, adding 1 unit to the pot to match Player 1's bet.
+Step 2 (Player 1 - Pre-Flop): It is Player 1's turn. Because the bets are now equal at 2 units each, Player 1 has the option to Check (represented as a Call action) or Raise. Player 1 chooses to Check, concluding the first betting round.
+Step 3 (Chance - The Flop): A single public community card is dealt face-up on the board for both players to use: a Jack.
+Step 4 (Player 0 - Post-Flop): The second betting round begins. Player 0, now holding a Pair of Jacks (combining their private Jack with the community Jack), chooses to Raise, betting 4 additional units into the pot.
+Step 5 (Player 1 - Post-Flop): It is Player 1's turn. Holding only King-High (combining their private King with the community Jack), Player 1 chooses to Call, matching the 4-unit bet to force a showdown. This concludes the final betting round.
+Step 6 (Terminal - Showdown): The game proceeds to the showdown. Both players reveal their private cards. Player 0's Pair of Jacks outranks Player 1's King-High, so Player 0 wins the entire pot. Having contributed a total of 6 units to the pot throughout the hand, Player 0 nets a total profit of +6.0. Player 1 loses their 6-unit contribution, resulting in a net payoff of -6.0. The game ends immediately, and no further actions can be taken.
 
-    Step 1 (P1 Turn - Pre-Flop):
-
-    Pot: 3 (P1 SB=1, P2 BB=2). To stay in, P1 must match 2.
-    current_player: 0 legal_actions: ["Fold", "Call", "Raise"] -> Action: "Call" (P1 adds 1 unit. Pot: 4)
-
-    Step 2 (P2 Turn - Pre-Flop):
-
-    Bets are equal (2 vs 2). P2 can Check (Call) or Raise.
-    current_player: 1 legal_actions: ["Call", "Raise"] -> Action: "Call" (P2 Checks. Round 1 betting ends)
-
-    Step 3 (CHANCE - Flop Deal): current_player: -1 legal_actions: ["deal:J", "deal:Q"] # Remaining cards -> Action: "deal:J" (Public card is Jack)
-
-    Step 4 (P1 Turn - Post-Flop):
-
-    P1 has Pair of Jacks (J, J). P2 has K High (K, J).
-    Bet size is now 4.
-    current_player: 0 legal_actions: ["Call", "Raise"] -> Action: "Raise" (P1 bets 4. Pot: 8)
-
-    Step 5 (P2 Turn - Post-Flop):
-
-    P2 must put in 4 to see showdown.
-    current_player: 1 legal_actions: ["Fold", "Call", "Raise"] -> Action: "Call" (P2 calls 4. Pot: 12. Round 2 ends)
-
-    Step 6 (Showdown - Terminal):
-
-    P1 (Pair J) beats P2 (High Card K).
-    P1 put in 6 total (1+1+4). Won 12. Net +6.
-    P2 put in 6 total (2+0+4). Lost. Net -6.
-    current_player: -4 legal_actions: [] -> Rewards: [6.0, -6.0]
+## Action String Specification
+Player actions: ["Fold", "Call", "Raise"]
+  - "Fold": forfeit the hand
+  - "Call": match the current bet (also used as a zero-cost check when no bet is outstanding)
+  - "Raise": increase the bet by the fixed amount for the current round
+Chance actions: format "deal:<rank>" where rank ∈ {J, Q, K}, e.g. "deal:J", "deal:Q", "deal:K"

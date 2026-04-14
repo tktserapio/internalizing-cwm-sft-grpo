@@ -43,14 +43,15 @@ Battleship is a two-player guessing game where each player tries to sink the opp
   - Opponent's ship positions (until hit)
 
 ### Example Trajectory
-This shows a simplified game on a 4x4 board.
-
-Step 0 (CHANCE): current_player=-1, legal_actions=[...], rewards=[0.0, 0.0]
-  -> Action: "setup_..."  # Ships placed for both players
-Step 1: current_player=0, legal_actions=["fire_0_0", "fire_0_1", ..., "fire_3_3"], rewards=[0.0, 0.0]
-  -> Action: "fire_1_1"  # P0 fires at (1,1)
-Step 2: current_player=1, legal_actions=["fire_0_0", "fire_0_1", ..., "fire_3_3"], rewards=[0.0, 0.0]
-  -> Action: "fire_0_0"  # P1 fires at (0,0)
+(Simplified 4x4 Board)
+Step 0 (Setup/Chance): The game begins with an automated setup phase. Ships are secretly placed on the 4x4 grids for both Player 0 and Player 1.
+Step 1 (Player 0): It is Player 0's turn. From the available coordinates, Player 0 chooses to fire at position (1, 1).
+Step 2 (Player 1): It is Player 1's turn. Player 1 chooses to fire back at position (0, 0).
 ...
-Step N (TERMINAL): current_player=-4, legal_actions=[], rewards=[1.0, -1.0]
-  # P0 sinks all P1's ships first
+Step N (Terminal): Player 0 successfully sinks the last of Player 1's ships. The game ends immediately. 
+Player 0 receives a full win (+1.0), and Player 1 receives a loss (-1.0). No further actions can be taken.
+
+## Action String Specification
+Player actions: format "fire_<row>_<col>" where row and col are 0-indexed integers
+  - e.g. "fire_0_0", "fire_3_7"
+Chance actions: ship placement string encoding both players' layouts separated by "||"

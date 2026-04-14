@@ -282,9 +282,6 @@ def apply_action(state: State, action: Action) -> State:
 
 def get_rewards(state: State) -> List[float]:
     """Returns rewards [p0_reward, p1_reward]. 1 for win, -1 for loss."""
-    if not state["terminal"]:
-        return [0.0, 0.0]
-    
     w = state["winner"]
     if w == 0:
         return [1.0, -1.0]
