@@ -4,183 +4,113 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-import random
+from typing import Dict, List, Tuple
 
 # Type definitions
 Action = str
-State = dict[str, Any]
-PlayerObservation = dict[str, Any]
+State = Dict[str, Any]
+PlayerObservation = Dict[str, Any]
 
-# Helper functions
-def shuffle_deck(deck):
-    """Shuffles the given deck of cards."""
-    random.shuffle(deck)
-    return deck
-
-def deal_cards(deck, num_players):
-    """Deals the deck evenly among the players."""
-    return [deck[i::num_players] for i in range(num_players)]
-
-def get_card_rank(card):
-    """Converts a card string to its rank (A, K, Q, J)."""
-    ranks = {'A': 14, 'K': 13, 'Q': 12, 'J': 11}
-    return ranks.get(card, int(card))
-
-# Required Functions
-def get_initial_state():
-    """Returns the initial game state before any actions are taken."""
-    # Deck of cards
-    deck = ['A', 'K', 'Q', 'J'] * 4
-    shuffle_deck(deck)
+# Helper function to initialize the game state
+def get_initial_state() -> State:
+    # Initialize the deck and deal the cards
+    deck = ['A', 'K', 'Q', 'J'] * 4  # Aces, Kings, Queens, Jacks
+    shuffled_deck = deck[:]
+    import random
+    random.shuffle(shuffled_deck)
     
-    # Initial hands
-    player0_hand = deck[:3]
-    player1_hand = deck[3:6]
+    # Shuffle and deal the deck evenly between two players
+    player0_cards = shuffled_deck[:8]
+    player1_cards = shuffled_deck[8:]
     
-    # Draw piles
-    player0_draw = deck[6:]
-    player1_draw = deck[6:]
+    # Form hands by drawing the top 3 cards
+    player0_hand = player0_cards[:3]
+    player1_hand = player1_cards[:3]
     
-    # Win piles
-    player0_win = []
-    player1_win = []
-    
-    # Current player
-    current_player = 0
-    
-    # Observations
-    player0_obs = {
-        'hand': player0_hand,
-        'draw': player0_draw,
-        'win': player0_win
-    }
-    player1_obs = {
-        'hand': player1_hand,
-        'draw': player1_draw,
-        'win': player1_win
-    }
-    
-    return {
+    # Initial state dictionary
+    state = {
+        'deck': shuffled_deck,
         'player0_hand': player0_hand,
         'player1_hand': player1_hand,
-        'player0_draw': player0_draw,
-        'player1_draw': player1_draw,
-        'player0_win': player0_win,
-        'player1_win': player1_win,
-        'current_player': current_player,
-        'publicly_revealed_cards': [],
-        'player0_obs': player0_obs,
-        'player1_obs': player1_obs
+        'player0_win_pile': [],
+        'player1_win_pile': [],
+        'player0_draw_pile': player0_cards[3:],
+        'player1_draw_pile': player1_cards[3:],
+        'current_player': 0,
+        'publicly_revealed_cards': []
     }
+    return state
 
+# Apply an action to the state
 def apply_action(state: State, action: Action) -> State:
-    """
-    Returns the new state after an action has been taken.
-    Ensure that the previous state is not mutated; always return a new state object.
-    """
-    if action.startswith('deal'):
-        # Deal cards
-        _, _, cards_to_deal = action.split(':')
-        cards_to_deal = cards_to_deal.split(',')
-        player_id, cards = int(cards_to_deal[0]), cards_to_deal[1:]
-        new_state = state.copy()
-        new_state[f'player{player_id}_draw'] += cards
-        return new_state
-        
-    elif action.startswith('play'):
-        # Play a card
-        player_id, card = int(action.split(':')[1]), action.split(':')[1]
-        new_state = state.copy()
-        
-        # Check if the card is in the hand
-        if card in state[f'player{player_id}_hand']:
-            new_state[f'player{player_id}_hand'].remove(card)
-            new_state[f'player{player_id}_win'].append(card)
+    if action.startswith('play:'):
+        card_index = int(action.split(':')[1])
+        if card_index < len(state['player0_hand']):
+            # Player 0 plays a card
+            state['player0_hand'][card_index], state['publicly_revealed_cards'] = state['publicly_revealed_cards'], state['player0_hand'][card_index]
+            state['player0_hand'][card_index] = None
+            state['current_player'] = 1
         else:
-            raise ValueError(f"Player {player_id} tried to play a card not in their hand.")
-        
-        # Update the publicly revealed cards
-        new_state['publicly_revealed_cards'].append(card)
-        
-        # Determine the current player
-        current_player = get_current_player(new_state)
-        
-        # Check for showdown
-        if len(new_state[f'player{current_player}_win']) == 16:
-            return new_state
-        
-        # Check for end of game
-        if len(new_state[f'player{current_player}_draw']) == 0:
-            return new_state
-        
-        # Switch to the other player
-        new_state['current_player'] = 1 - current_player
-        
-        return new_state
-    
+            raise ValueError("Invalid card index")
+    elif action.startswith('deal:'):
+        # Not implemented in this version
+        pass
     else:
-        raise ValueError("Invalid action format.")
+        raise ValueError("Unknown action")
+    
+    return state
 
+# Get the current player
 def get_current_player(state: State) -> int:
-    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
     return state['current_player']
 
+# Get the name of the player
 def get_player_name(player_id: int) -> str:
-    """Returns the name of the player."""
     return f"Player {player_id}"
 
-def get_rewards(state: State) -> list[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    player0_win = len(state['player0_win'])
-    player1_win = len(state['player1_win'])
-    if player0_win == 16 or player1_win == 16:
-        return [1.0, 0.0] if player0_win == 16 else [0.0, 1.0]
+# Get rewards per player
+def get_rewards(state: State) -> List[float]:
+    # Reward system not implemented here
     return [0.0, 0.0]
 
-def get_legal_actions(state: State) -> list[Action]:
-    """Returns legal actions for current state. Empty list if terminal."""
-    current_player = get_current_player(state)
-    player_id = current_player
-    legal_actions = []
-    
-    # Player 0's turn
-    if current_player == 0:
-        legal_actions.append(f"play:{state['player0_hand'][0]}")
-        if len(state['player0_draw']) > 0:
-            legal_actions.append(f'deal:{state["player0_draw"][0]}')
-    
-    # Player 1's turn
-    elif current_player == 1:
-        legal_actions.append(f"play:{state['player1_hand'][0]}")
-        if len(state['player1_draw']) > 0:
-            legal_actions.append(f'deal:{state["player1_draw"][0]}')
-    
-    return legal_actions
+# Get legal actions for the current state
+def get_legal_actions(state: State) -> List[Action]:
+    player_id = get_current_player(state)
+    if player_id == 0:
+        return ['play:0', 'play:1', 'play:2']
+    else:
+        return ['play:0', 'play:1', 'play:2']
 
-def get_observations(state: State) -> list[PlayerObservation]:
-    """Returns [player_0_obs, player_1_obs]."""
-    return [
-        {
-            'hand': state[f'player0_hand'],
-            'draw': state[f'player0_draw'],
-            'win': state['player0_win']
-        },
-        {
-            'hand': state[f'player1_hand'],
-            'draw': state[f'player1_draw'],
-            'win': state['player1_win']
-        }
-    ]
+# Get observations for each player
+def get_observations(state: State) -> List[PlayerObservation]:
+    player0_obs = {
+        'hand': state['player0_hand'],
+        'win_pile': state['player0_win_pile'],
+        'draw_pile': state['player0_draw_pile'],
+        'publicly_revealed_cards': state['publicly_revealed_cards']
+    }
+    player1_obs = {
+        'hand': state['player1_hand'],
+        'win_pile': state['player1_win_pile'],
+        'draw_pile': state['player1_draw_pile'],
+        'publicly_revealed_cards': state['publicly_revealed_cards']
+    }
+    return [player0_obs, player1_obs]
 
-def resample_history(obs_action_history: list[tuple[PlayerObservation, Action | None]], player_id: int) -> list[Action]:
-    """
-    Stochastically sample a valid sequence of actions (including 'chance' outcomes) that explains the current observations.
-    CRITICAL: The returned list must be a complete trajectory that can be replayed starting EXACTLY from get_initial_state().
-    """
-    # This function would need to implement the logic to resample history based on the current observations.
-    # For simplicity, we will just return a fixed sequence of actions.
-    # In a real implementation, this would involve complex sampling logic.
-    return [
-        f"play:{obs_action_history[-1][0]['hand'][0]}" if obs_action_history[-1][1] is None else obs_action_history[-1][1],
-        f'deal:{obs_action_history[-1][0]["draw"][0]}'
-    ]
+# Resample history to generate a valid sequence of actions
+def resample_history(obs_action_history: List[Tuple[PlayerObservation, Action | None]], player_id: int) -> List[Action]:
+    # Placeholder for resampling logic
+    # For simplicity, we just return the last action
+    return [obs_action_history[-1][1]] if obs_action_history else []
+
+# Example usage
+if __name__ == "__main__":
+    state = get_initial_state()
+    print(state)
+    
+    # Apply some actions
+    state = apply_action(state, 'play:0')
+    state = apply_action(state, 'play:1')
+    state = apply_action(state, 'play:2')
+    
+    print(state)

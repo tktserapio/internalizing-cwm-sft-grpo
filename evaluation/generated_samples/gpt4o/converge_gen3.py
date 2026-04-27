@@ -4,120 +4,127 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 # Type definitions
 Action = str
-State = Dict[str, Any]
-PlayerObservation = Dict[str, Any]
+State = dict[str, Any]
+PlayerObservation = dict[str, Any]
 
 # Constants
 BOARD_SIZE = 5
 CENTER_SQUARE = (2, 2)
 MAX_TURNS = 50
 
-# Helper function to create a new board
-def create_board() -> List[List[int]]:
-    return [[-1 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
-
-# Helper function to check if a move is within bounds
-def is_within_bounds(r: int, c: int) -> bool:
-    return 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE
-
-# Helper function to get adjacent squares
-def get_adjacent_squares(r: int, c: int) -> List[Tuple[int, int]]:
-    directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-    return [(r + dr, c + dc) for dr, dc in directions if is_within_bounds(r + dr, c + dc)]
-
-# Initialize the game state
 def get_initial_state() -> State:
-    board = create_board()
-    board[0][0] = 0
-    board[0][4] = 0
-    board[4][0] = 1
-    board[4][4] = 1
+    """Returns the initial game state before any actions are taken."""
     return {
-        "board": board,
+        "board": [[None for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)],
+        "positions": {
+            0: [(0, 0), (0, 4)],  # Player 0 (Blue) starting positions
+            1: [(4, 0), (4, 4)],  # Player 1 (Red) starting positions
+        },
+        "stunned": {0: [], 1: []},  # Stunned units for each player
         "current_player": 0,
         "turn_count": 0,
-        "stunned": {0: [], 1: []}
+        "winner": None
     }
 
-# Apply an action to the state
 def apply_action(state: State, action: Action) -> State:
+    """
+    Returns the new state after an action has been taken.
+    Ensure that the previous state is not mutated; always return a new state object.
+    """
     new_state = {
         "board": [row[:] for row in state["board"]],
+        "positions": {0: state["positions"][0][:], 1: state["positions"][1][:]},
+        "stunned": {0: state["stunned"][0][:], 1: state["stunned"][1][:]},
         "current_player": state["current_player"],
-        "turn_count": state["turn_count"] + 1,
-        "stunned": {0: state["stunned"][0][:], 1: state["stunned"][1][:]}
+        "turn_count": state["turn_count"],
+        "winner": state["winner"]
     }
     
-    if action == "pass":
-        new_state["current_player"] = 1 - state["current_player"]
-        return new_state
-
-    _, src, _, dst = action.split()
-    r1, c1 = map(int, src.strip("()").split(","))
-    r2, c2 = map(int, dst.strip("()").split(","))
-
-    player = state["current_player"]
-    new_state["board"][r1][c1] = -1
-    new_state["board"][r2][c2] = player
-
-    # Update stunned units
-    opponent = 1 - player
-    new_state["stunned"][opponent] = []
-    for adj_r, adj_c in get_adjacent_squares(r2, c2):
-        if new_state["board"][adj_r][adj_c] == opponent:
-            new_state["stunned"][opponent].append((adj_r, adj_c))
-
-    new_state["current_player"] = opponent
+    if action.startswith("move"):
+        _, from_pos, _, to_pos = action.split()
+        from_pos = tuple(map(int, from_pos.strip("()").split(",")))
+        to_pos = tuple(map(int, to_pos.strip("()").split(",")))
+        
+        player = new_state["current_player"]
+        new_state["positions"][player].remove(from_pos)
+        new_state["positions"][player].append(to_pos)
+        
+        # Check for victory
+        if to_pos == CENTER_SQUARE:
+            new_state["winner"] = player
+        
+        # Update stunned units
+        opponent = 1 - player
+        new_state["stunned"][opponent] = [
+            pos for pos in new_state["positions"][opponent]
+            if not is_adjacent(pos, to_pos)
+        ]
+    
+    # Switch player
+    new_state["current_player"] = 1 - new_state["current_player"]
+    new_state["turn_count"] += 1
+    
     return new_state
 
-# Determine the current player
 def get_current_player(state: State) -> int:
-    if state["turn_count"] >= MAX_TURNS:
+    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
+    if state["winner"] is not None or state["turn_count"] >= MAX_TURNS:
         return -4
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if state["board"][r][c] != -1 and (r, c) == CENTER_SQUARE:
-                return -4
     return state["current_player"]
 
-# Get the name of the player
 def get_player_name(player_id: int) -> str:
+    """Returns the name of the player."""
     return "Blue" if player_id == 0 else "Red"
 
-# Get the rewards for each player
 def get_rewards(state: State) -> List[float]:
+    """Returns the rewards per player."""
+    if state["winner"] is not None:
+        return [1.0, 0.0] if state["winner"] == 0 else [0.0, 1.0]
     if state["turn_count"] >= MAX_TURNS:
-        return [0.0, 0.0]
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if state["board"][r][c] != -1 and (r, c) == CENTER_SQUARE:
-                winner = state["board"][r][c]
-                return [1.0, 0.0] if winner == 0 else [0.0, 1.0]
+        return [0.5, 0.5]  # Draw
     return [0.0, 0.0]
 
-# Get legal actions for the current state
 def get_legal_actions(state: State) -> List[Action]:
+    """Returns legal actions for current state. Empty list if terminal."""
     if get_current_player(state) == -4:
         return []
-
+    
     player = state["current_player"]
-    legal_actions = []
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if state["board"][r][c] == player and (r, c) not in state["stunned"][player]:
-                for adj_r, adj_c in get_adjacent_squares(r, c):
-                    if state["board"][adj_r][adj_c] == -1:
-                        legal_actions.append(f"move ({r},{c}) to ({adj_r},{adj_c})")
+    actions = []
+    
+    for pos in state["positions"][player]:
+        if pos in state["stunned"][player]:
+            continue
+        
+        for dr in [-1, 0, 1]:
+            for dc in [-1, 0, 1]:
+                if dr == 0 and dc == 0:
+                    continue
+                new_pos = (pos[0] + dr, pos[1] + dc)
+                if is_within_bounds(new_pos) and is_empty(state, new_pos):
+                    actions.append(f"move {pos} to {new_pos}")
+    
+    if not actions:
+        actions.append("pass")
+    
+    return actions
 
-    if not legal_actions:
-        legal_actions.append("pass")
-
-    return legal_actions
-
-# Get observations for both players
 def get_observations(state: State) -> List[PlayerObservation]:
+    """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
     return [state, state]
+
+def is_within_bounds(pos: Tuple[int, int]) -> bool:
+    """Check if a position is within the board bounds."""
+    return 0 <= pos[0] < BOARD_SIZE and 0 <= pos[1] < BOARD_SIZE
+
+def is_empty(state: State, pos: Tuple[int, int]) -> bool:
+    """Check if a position is empty."""
+    return all(pos not in state["positions"][player] for player in [0, 1])
+
+def is_adjacent(pos1: Tuple[int, int], pos2: Tuple[int, int]) -> bool:
+    """Check if two positions are adjacent."""
+    return abs(pos1[0] - pos2[0]) <= 1 and abs(pos1[1] - pos2[1]) <= 1

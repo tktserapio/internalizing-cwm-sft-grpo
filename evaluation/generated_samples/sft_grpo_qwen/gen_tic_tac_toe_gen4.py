@@ -30,7 +30,7 @@ def apply_action(state: State, action: Action) -> State:
     
     # Check if the action is valid
     if state["board"][row][col] != ".":
-        raise ValueError("Cell already occupied")
+        raise ValueError("Cell is already occupied.")
     
     # Update the board
     state["board"][row][col] = "x" if state["current_player"] == 0 else "o"
@@ -53,23 +53,27 @@ def apply_action(state: State, action: Action) -> State:
 
 def check_win(state: State) -> bool:
     """
-    Checks if the current player has won the game.
-    Checks for horizontal, vertical, and diagonal lines of four marks.
+    Checks if there is a winning line of four marks for the current player.
     """
-    board = state["board"]
-    current_player = state["current_player"]
+    directions = [
+        ((0, 0), (0, 1), (0, 2), (0, 3)),  # Horizontal
+        ((1, 0), (1, 1), (1, 2), (1, 3)),  # Horizontal
+        ((2, 0), (2, 1), (2, 2), (2, 3)),  # Horizontal
+        ((3, 0), (3, 1), (3, 2), (3, 3)),  # Horizontal
+        ((0, 0), (1, 0), (2, 0), (3, 0)),  # Vertical
+        ((0, 1), (1, 1), (2, 1), (3, 1)),  # Vertical
+        ((0, 2), (1, 2), (2, 2), (3, 2)),  # Vertical
+        ((0, 3), (1, 3), (2, 3), (3, 3)),  # Vertical
+        ((0, 0), (1, 1), (2, 2), (3, 3)),  # Diagonal
+        ((0, 3), (1, 2), (2, 1), (3, 0))   # Diagonal
+    ]
     
-    # Check rows and columns
-    for i in range(6):
-        if board[i][0] == board[i][1] == board[i][2] == board[i][3] == current_player or \
-           board[0][i] == board[1][i] == board[2][i] == board[3][i] == current_player:
-            return True
-    
-    # Check diagonals
-    if board[0][0] == board[1][1] == board[2][2] == board[3][3] == current_player or \
-       board[0][5] == board[1][4] == board[2][3] == board[3][2] == current_player:
-        return True
-    
+    for direction in directions:
+        for i in range(6):
+            if state["board"][direction[0][0]][i] == state["board"][direction[1][0]][i] == state["board"][direction[2][0]][i] == state["board"][direction[3][0]][i] == "x":
+                return True
+            elif state["board"][direction[0][0]][i] == state["board"][direction[1][0]][i] == state["board"][direction[2][0]][i] == state["board"][direction[3][0]][i] == "o":
+                return True
     return False
 
 def get_current_player(state: State) -> int:
@@ -94,13 +98,16 @@ def get_legal_actions(state: State) -> List[Action]:
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    observations = []
-    for player_id in range(2):
-        observation = {}
-        observation["board"] = state["board"]
-        observation["current_player"] = get_current_player(state)
-        observation["winner"] = state["winner"]
-        observation["turn_count"] = state["turn_count"]
-        observation["player_id"] = player_id
-        observations.append(observation)
-    return observations
+    player_0_obs = {
+        "board": state["board"],
+        "current_player": state["current_player"],
+        "winner": state["winner"],
+        "turn_count": state["turn_count"]
+    }
+    player_1_obs = {
+        "board": state["board"],
+        "current_player": state["current_player"],
+        "winner": state["winner"],
+        "turn_count": state["turn_count"]
+    }
+    return [player_0_obs, player_1_obs]

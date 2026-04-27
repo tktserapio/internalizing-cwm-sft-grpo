@@ -14,135 +14,159 @@ PlayerObservation = Dict[str, Any]
 
 # Helper functions
 def shuffle_deck() -> List[int]:
-    """Shuffles the deck and returns the sorted list of card values."""
-    deck = list(range(1, 53))  # 1-13 for each suit (Ace through King)
+    """Shuffles the deck and returns the shuffled deck as a list of card ranks."""
+    suits = ['S', 'C', 'D', 'H']
+    ranks = [str(i) for i in range(2, 11)] + ['J', 'Q', 'K', 'A']
+    deck = [(suit, rank) for suit in suits for rank in ranks]
     random.shuffle(deck)
     return deck
 
-def parse_card(card: int) -> str:
-    """Converts a card index to a string representation."""
-    suits = ['S', 'C', 'D', 'H']
-    ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
-    suit = suits[(card - 1) // 13]
-    rank = ranks[card % 13]
-    return f"{rank}{suit}"
-
-def parse_meld(meld: List[int]) -> str:
-    """Converts a list of card indices to a string representation of a meld."""
-    meld_str = ''
-    for card in meld:
-        meld_str += parse_card(card)
-    return meld_str
-
-def parse_deadwood(deadwood: List[int]) -> str:
-    """Converts a list of card indices to a string representation of deadwood."""
-    deadwood_str = ''
-    for card in deadwood:
-        deadwood_str += parse_card(card)
-    return deadwood_str
-
-# Required Functions
-def get_initial_state() -> State:
-    """Returns the initial game state before any actions are taken."""
+def create_initial_state(deck: List[Tuple[str, str]]) -> State:
+    """Creates the initial state of the game."""
     # Initial state setup
-    deck = shuffle_deck()
-    upcard = deck.pop(0)  # First upcard
-    stockpile = deck.copy()
-    deadwood = []
-    melds = {}
-    player_id = 0  # Non-dealer starts first
     state = {
         'deck': deck,
-        'upcard': upcard,
-        'stockpile': stockpile,
-        'deadwood': deadwood,
-        'melds': melds,
-        'player_id': player_id,
+        'upcard': None,
+        'dealer': 0,  # Assume player 0 is the dealer
+        'knocked': False,
+        'knock_card': 10,  # Default knock card value
+        'player_0_melds': [],
+        'player_1_melds': [],
+        'player_0_deadwood': 0,
+        'player_1_deadwood': 0,
         'phase': 'Draw',
-        'knock_card': 10,
-        'knocked': False
+        'obs_action_history': []
     }
     return state
 
 def apply_action(state: State, action: Action) -> State:
-    """Returns the new state after an action has been taken."""
+    """Applies the given action to the state and returns the new state."""
+    new_state = state.copy()
     if action == 'Draw stock':
-        state['stockpile'].append(state['upcard'])
-        state['upcard'] = state['stockpile'].pop(0)
-        state['phase'] = 'Discard'
+        new_state['deck'] = state['deck'][1:]  # Remove the last card from the deck
+        new_state['upcard'] = new_state['deck'].pop()  # Draw the new upcard
+        new_state['phase'] = 'Discard'
     elif action == 'Draw upcard':
-        state['stockpile'].append(state['upcard'])
-        state['upcard'] = state['stockpile'].pop(0)
-        state['phase'] = 'Discard'
+        new_state['upcard'] = new_state['deck'].pop()  # Draw the new upcard
+        new_state['phase'] = 'Discard'
     elif action.startswith('Action: '):
-        card_to_discard = int(action[7:])
-        state['deadwood'].append(card_to_discard)
-        state['melds'][card_to_discard] = state['melds'].get(card_to_discard, [])
-        state['player_id'] = (state['player_id'] + 1) % 2
-        state['phase'] = 'Knock'
-    elif action == 'Knock':
-        state['knocked'] = True
-        state['phase'] = 'Layoff'
-    elif action == 'Done':
-        state['phase'] = 'Layoff'
+        card_to_discard = action.split(':')[1]
+        if card_to_discard in new_state['deck']:
+            new_state['deck'].remove(card_to_discard)
+            new_state['phase'] = 'Knock'
+        else:
+            raise ValueError(f"Card {card_to_discard} not in deck")
+    elif action == 'Action: Knock':
+        new_state['knocked'] = True
+        new_state['knock_card'] = new_state['player_1_deadwood']
+        new_state['phase'] = 'Layoff'
+        new_state['obs_action_history'].append(('Knock', action))
+    elif action == 'Action: Done':
+        new_state['phase'] = 'Done'
     elif action == 'Pass':
-        state['phase'] = 'Layoff'
+        new_state['phase'] = 'Done'
     else:
         raise ValueError(f"Invalid action: {action}")
-    return state
+    
+    return new_state
 
 def get_current_player(state: State) -> int:
-    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    return state['player_id']
+    """Returns the current player based on the dealer and knocked status."""
+    if state['knocked']:
+        return 1 - state['dealer']
+    return state['dealer']
 
 def get_player_name(player_id: int) -> str:
     """Returns the name of the player."""
     return f"Player {player_id}"
 
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards."""
-    if state['phase'] == 'Wall':
+    """Returns the rewards per player. For simplicity, assume no running rewards."""
+    if state['phase'] == 'Done':
         return [0.0, 0.0]
     return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
-    """Returns legal actions for current state. Empty list if terminal."""
+    """Returns legal actions for the current state."""
     if state['phase'] == 'Wall':
         return []
-    if state['player_id'] == state['knocked']:
-        return ['Knock', 'Done']
     if state['phase'] == 'Draw':
         return ['Draw stock', 'Draw upcard']
-    return ['Knock', 'Pass']
+    if state['phase'] == 'Knock':
+        return ['Action: Knock', 'Action: Done']
+    if state['phase'] == 'Layoff':
+        return ['Action: Done']
+    return []
 
 def get_observations(state: State) -> List[PlayerObservation]:
-    """Returns [player_0_obs, player_1_obs]."""
+    """Returns the observations for each player."""
     player_0_obs = {
-        'deck': state['deck'],
         'upcard': state['upcard'],
-        'stockpile': state['stockpile'],
-        'deadwood': parse_deadwood(state['deadwood']),
-        'melds': state['melds'],
-        'player_id': state['player_id'],
-        'phase': state['phase'],
+        'deck': state['deck'],
+        'dealer': state['dealer'],
+        'knocked': state['knocked'],
         'knock_card': state['knock_card'],
-        'knocked': state['knocked']
+        'player_0_melds': state['player_0_melds'],
+        'player_1_melds': state['player_1_melds'],
+        'player_0_deadwood': state['player_0_deadwood'],
+        'player_1_deadwood': state['player_1_deadwood'],
+        'phase': state['phase'],
+        'obs_action_history': state['obs_action_history']
     }
     player_1_obs = {
-        'deck': state['deck'],
         'upcard': state['upcard'],
-        'stockpile': state['stockpile'],
-        'deadwood': parse_deadwood(state['deadwood']),
-        'melds': state['melds'],
-        'player_id': state['player_id'],
-        'phase': state['phase'],
+        'deck': state['deck'],
+        'dealer': state['dealer'],
+        'knocked': state['knocked'],
         'knock_card': state['knock_card'],
-        'knocked': state['knocked']
+        'player_0_melds': state['player_1_melds'],
+        'player_1_melds': state['player_0_melds'],
+        'player_0_deadwood': state['player_1_deadwood'],
+        'player_1_deadwood': state['player_0_deadwood'],
+        'phase': state['phase'],
+        'obs_action_history': state['obs_action_history']
     }
     return [player_0_obs, player_1_obs]
 
 def resample_history(obs_action_history: List[Tuple[PlayerObservation, Action | None]], player_id: int) -> List[Action]:
     """Stochastically sample a valid sequence of actions (including 'chance' outcomes) that explains the current observations."""
-    # Implementing resampling logic here would require a more complex algorithm
-    # For simplicity, we'll just return a dummy action
-    return ['Draw stock']
+    # Placeholder for resampling logic
+    # For simplicity, we'll just return a fixed sequence of actions
+    if player_id == 0:
+        return ['Draw stock', 'Action: 3d', 'Action: Knock']
+    else:
+        return ['Draw stock', 'Action: 3d', 'Action: Knock']
+
+# Main functions
+def get_initial_state() -> State:
+    """Returns the initial game state before any actions are taken."""
+    deck = shuffle_deck()
+    return create_initial_state(deck)
+
+def apply_action(state: State, action: Action) -> State:
+    """Applies the given action to the state and returns the new state."""
+    return apply_action(state, action)
+
+def get_current_player(state: State) -> int:
+    """Returns the current player based on the dealer and knocked status."""
+    return get_current_player(state)
+
+def get_player_name(player_id: int) -> str:
+    """Returns the name of the player."""
+    return get_player_name(player_id)
+
+def get_rewards(state: State) -> List[float]:
+    """Returns the rewards per player. For simplicity, assume no running rewards."""
+    return get_rewards(state)
+
+def get_legal_actions(state: State) -> List[Action]:
+    """Returns legal actions for the current state."""
+    return get_legal_actions(state)
+
+def get_observations(state: State) -> List[PlayerObservation]:
+    """Returns the observations for each player."""
+    return get_observations(state)
+
+def resample_history(obs_action_history: List[Tuple[PlayerObservation, Action | None]], player_id: int) -> List[Action]:
+    """Stochastically sample a valid sequence of actions (including 'chance' outcomes) that explains the current observations."""
+    return resample_history(obs_action_history, player_id)

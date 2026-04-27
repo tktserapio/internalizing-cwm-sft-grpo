@@ -11,7 +11,7 @@ Action = str
 State = dict[str, Any]
 PlayerObservation = dict[str, Any]
 
-# Helper function to check if a given position is within the board boundaries
+# Helper function to check if a position is within the board boundaries
 def is_within_bounds(pos):
     return 0 <= pos[0] <= 4 and 0 <= pos[1] <= 4
 
@@ -33,38 +33,50 @@ def get_initial_state() -> State:
 def apply_action(state: State, action: Action) -> State:
     new_state = copy.deepcopy(state)
     if action == 'pass':
-        new_state['current_player'] = (new_state['current_player'] + 1) % 2
         return new_state
     
-    # Parse the action
-    source, target = action.split(' to ')
-    sr, sc = map(int, source.split(','))
-    tr, tc = map(int, target.split(','))
+    # Parse the action string
+    src, dest = action.split(' to ')
+    src_row, src_col = map(int, src.split(','))
+    dest_row, dest_col = map(int, dest.split(','))
     
-    # Check if the source and target positions are valid
-    if not is_within_bounds((sr, sc)) or not is_within_bounds((tr, tc)):
+    # Check if the source and destination positions are valid
+    if not is_within_bounds((src_row, src_col)) or not is_within_bounds((dest_row, dest_col)):
         raise ValueError("Invalid move")
     
-    # Update the source unit's position
-    for i, unit in enumerate(new_state['blue_units']):
-        if unit == (sr, sc):
-            new_state['blue_units'][i] = (tr, tc)
-            break
+    # Get the unit being moved
+    unit = None
+    if state['current_player'] == 0:
+        for u in state['blue_units']:
+            if u == (src_row, src_col):
+                unit = u
+                break
+    else:
+        for u in state['red_units']:
+            if u == (src_row, src_col):
+                unit = u
+                break
     
-    # Check if the center square is now occupied
-    if (2, 2) in new_state['blue_units']:
-        new_state['center_square_occupied'] = True
+    if unit is None:
+        raise ValueError("Unit not found")
     
-    # Update the turn count
+    # Update the unit's position
+    new_state['blue_units'] = state['blue_units'] if state['current_player'] == 0 else state['red_units']
+    new_state['blue_units'].remove(unit)
+    new_state['blue_units'].append((dest_row, dest_col))
+    
+    # Check for stun condition
+    for other_unit in state['blue_units'] if state['current_player'] == 0 else state['red_units']:
+        if abs(dest_row - other_unit[0]) + abs(dest_col - other_unit[1]) == 1:
+            new_state['red_units'] = state['red_units'] if state['current_player'] == 0 else state['blue_units']
+            new_state['red_units'].remove(other_unit)
+            new_state['red_units'].append((other_unit[0], other_unit[1]))
+            new_state['center_square_occupied'] = True
+            return new_state
+    
+    # Increment turn count
     new_state['turn_count'] += 1
-    new_state['current_player'] = (new_state['current_player'] + 1) % 2
-    
-    # Check for stun mechanic
-    for unit in new_state['blue_units']:
-        if (unit[0], unit[1]) in [(sr, sc)]:
-            new_state['blue_units'].append(unit)
-            new_state['blue_units'].remove(unit)
-            break
+    new_state['current_player'] = 1 if state['current_player'] == 0 else 0
     
     return new_state
 
@@ -76,32 +88,32 @@ def get_current_player(state: State) -> int:
 def get_player_name(player_id: int) -> str:
     return 'Blue' if player_id == 0 else 'Red'
 
-# Get rewards
+# Get the rewards per player
 def get_rewards(state: State) -> list[float]:
     if state['center_square_occupied']:
-        return [1.0, 0.0]
-    elif state['turn_count'] >= 50:
-        return [0.5, 0.5]
-    else:
-        return [0.0, 0.0]
+        return [1.0, 0.0] if state['current_player'] == 0 else [0.0, 1.0]
+    return [0.0, 0.0]
 
-# Get legal actions
+# Get legal actions for the current state
 def get_legal_actions(state: State) -> list[Action]:
     legal_actions = []
-    for unit in state['blue_units']:
-        for dr, dc in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
-            new_pos = (unit[0] + dr, unit[1] + dc)
-            if is_within_bounds(new_pos) and new_pos not in state['blue_units'] and new_pos not in state['red_units']:
-                legal_actions.append(f'move {unit} to {new_pos}')
-    if not legal_actions and state['current_player'] != 0:
-        legal_actions.append('pass')
+    if state['current_player'] == 0:
+        for unit in state['blue_units']:
+            for dest in [(unit[0]+1, unit[1]), (unit[0]-1, unit[1]), (unit[0], unit[1]+1), (unit[0], unit[1]-1), (unit[0]+1, unit[1]+1), (unit[0]+1, unit[1]-1), (unit[0]-1, unit[1]+1), (unit[0]-1, unit[1]-1)]:
+                if is_within_bounds(dest):
+                    legal_actions.append(f'move ({unit[0]}, {unit[1]}) to ({dest[0]}, {dest[1]})')
+    else:
+        for unit in state['red_units']:
+            for dest in [(unit[0]+1, unit[1]), (unit[0]-1, unit[1]), (unit[0], unit[1]+1), (unit[0], unit[1]-1), (unit[0]+1, unit[1]+1), (unit[0]+1, unit[1]-1), (unit[0]-1, unit[1]+1), (unit[0]-1, unit[1]-1)]:
+                if is_within_bounds(dest):
+                    legal_actions.append(f'move ({unit[0]}, {unit[1]}) to ({dest[0]}, {dest[1]})')
+    
+    if not legal_actions:
+        return ['pass']
     return legal_actions
 
-# Get observations
+# Get observations for each player
 def get_observations(state: State) -> list[PlayerObservation]:
-    blue_units = state['blue_units']
-    red_units = state['red_units']
-    return [
-        {'units': blue_units, 'stunned_units': []},
-        {'units': red_units, 'stunned_units': []}
-    ]
+    blue_obs = {'units': state['blue_units']}
+    red_obs = {'units': state['red_units']}
+    return [blue_obs, red_obs]

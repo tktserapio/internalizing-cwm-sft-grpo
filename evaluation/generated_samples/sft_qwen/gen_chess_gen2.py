@@ -11,143 +11,130 @@ Action = str
 State = dict[str, Any]
 PlayerObservation = dict[str, Any]
 
-# Helper function to convert file and rank to algebraic notation
-def file_rank_to_algebraic(file: str, rank: int) -> str:
-    return f"{file}{rank}"
+# Helper functions
+def convert_position(position):
+    """Converts algebraic notation to tuple coordinates for the 5x5 board."""
+    file, rank = position
+    file = 'a' if file == 'a' else 'b' if file == 'b' else 'c' if file == 'c' else 'd' if file == 'd' else 'e'
+    rank = '1' if rank == '1' else '2' if rank == '2' else '3' if rank == '3' else '4' if rank == '4' else '5'
+    return (rank, file)
 
-# Initialize the initial state of the game
+def convert_coordinates(coordinates):
+    """Converts tuple coordinates back to algebraic notation for the 5x5 board."""
+    rank, file = coordinates
+    file = 'a' if file == 'a' else 'b' if file == 'b' else 'c' if file == 'c' else 'd' if file == 'd' else 'e'
+    rank = '1' if rank == '1' else '2' if rank == '2' else '3' if rank == '3' else '4' if rank == '4' else '5'
+    return f"{rank}{file}"
+
+# Required Functions
 def get_initial_state() -> State:
+    """
+    Returns the initial game state before any actions are taken.
+    """
     # Initial board setup
     initial_board = {
-        "r": file_rank_to_algebraic("a", 5),
-        "n": file_rank_to_algebraic("b", 5),
-        "b": file_rank_to_algebraic("c", 5),
-        "q": file_rank_to_algebraic("d", 5),
-        "k": file_rank_to_algebraic("e", 5),
-        "p": "p_p_p_p_p",
-        "R": file_rank_to_algebraic("a", 1),
-        "N": file_rank_to_algebraic("b", 1),
-        "B": file_rank_to_algebraic("c", 1),
-        "Q": file_rank_to_algebraic("d", 1),
-        "K": file_rank_to_algebraic("e", 1),
-        "P": "P_P_P_P_P",
-        "E": "e2_e4_e5_e6_e7_e8"
+        "r": (1, 'a'), "n": (1, 'b'), "b": (1, 'c'), "q": (1, 'd'), "k": (1, 'e'),
+        "p": [(2, 'a'), (2, 'b'), (2, 'c'), (2, 'd'), (2, 'e')],
+        "R": (5, 'a'), "N": (5, 'b'), "B": (5, 'c'), "Q": (5, 'd'), "K": (5, 'e')
     }
-    return initial_board
+    return {"board": initial_board}
 
-# Apply an action to the state
 def apply_action(state: State, action: Action) -> State:
+    """
+    Returns the new state after an action has been taken.
+    Ensure that the previous state is not mutated; always return a new state object.
+    """
     new_state = copy.deepcopy(state)
-    piece, from_square, to_square = action.split("_")
+    piece, from_pos, to_pos = action.split('_')
+    from_pos = convert_position(from_pos)
+    to_pos = convert_position(to_pos)
     
-    # Handle pawn movement
+    # Check if the move is valid
     if piece == "P":
-        if from_square == to_square:
-            new_state[from_square] = "."
-            new_state[to_square] = piece
+        if from_pos[0] == '1':  # Pawn starting move
+            new_state["board"][piece][0] += 2
+        elif from_pos[0] == '5':  # Pawn ending move
+            new_state["board"][piece][0] -= 2
         else:
-            new_state[from_square] = "."
-            new_state[to_square] = piece
-            new_state[file_rank_to_algebraic(from_square[0], int(from_square[1]) + 1)] = "."
-    
-    # Handle piece movement
-    elif piece in ["R", "N", "B", "Q", "K"]:
-        new_state[from_square] = "."
-        new_state[to_square] = piece
-    
-    # Handle promotion
-    elif piece == "P" and to_square == "e5":
-        new_state[to_square] = "P"
-        new_state["e5_promotion"] = "Q"
-    
-    # Castling is not implemented in this version
+            new_state["board"][piece][0] -= 1
     elif piece == "K":
-        pass
+        new_state["board"][piece][0] = to_pos[0]
+        new_state["board"][piece][1] = to_pos[1]
+    else:
+        new_state["board"][piece][0] = to_pos[0]
+        new_state["board"][piece][1] = to_pos[1]
     
-    # En passant is not implemented in this version
-    elif piece == "P" and to_square == "e3":
-        new_state[to_square] = "P"
-        new_state["e3_promotion"] = "Q"
+    # Remove the moved piece from its original position
+    del new_state["board"][piece][:]
     
     return new_state
 
-# Get the current player
 def get_current_player(state: State) -> int:
-    if "E" in state:
-        return 0 if state["E"].startswith("P") else 1
-    return -4
+    """
+    Returns current player (e.g. 0 or 1), or -4 for terminal state.
+    """
+    white_pieces = sum(1 for _, pos in state["board"].values() if pos[0] == '1')
+    black_pieces = sum(1 for _, pos in state["board"].values() if pos[0] == '5')
+    if white_pieces > black_pieces:
+        return 0
+    elif black_pieces > white_pieces:
+        return 1
+    else:
+        return -4  # Terminal state
 
-# Get the name of the player
 def get_player_name(player_id: int) -> str:
+    """
+    Returns the name of the player.
+    """
     return "Player 0" if player_id == 0 else "Player 1"
 
-# Get the rewards per player
 def get_rewards(state: State) -> list[float]:
-    if "E" in state:
-        return [1.0, -1.0]
-    return [0.0, 0.0]
+    """
+    Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards.
+    """
+    white_pieces = sum(1 for _, pos in state["board"].values() if pos[0] == '1')
+    black_pieces = sum(1 for _, pos in state["board"].values() if pos[0] == '5')
+    if white_pieces > black_pieces:
+        return [1.0, 0.0]
+    elif black_pieces > white_pieces:
+        return [0.0, 1.0]
+    else:
+        return [0.0, 0.0]
 
-# Get the legal actions for the current state
 def get_legal_actions(state: State) -> list[Action]:
+    """
+    Returns legal actions for current state. Empty list if terminal.
+    """
     legal_actions = []
-    for piece in ["R", "N", "B", "Q", "K", "P"]:
-        for from_square in state.keys():
-            if state[from_square] == piece:
-                if piece == "P":
-                    # Pawn movement
-                    if from_square in ["a2", "b2", "c2", "d2", "e2"]:
-                        if from_square == "a2":
-                            if "a3" in state and state["a3"] == ".":
-                                legal_actions.append(f"P_{from_square}_a3")
-                        if from_square == "e2":
-                            if "e3" in state and state["e3"] == ".":
-                                legal_actions.append(f"P_{from_square}_e3")
-                        if "e4" in state and state["e4"] == ".":
-                            legal_actions.append(f"P_{from_square}_e4")
-                    if from_square in ["a1", "b1", "c1", "d1", "e1"]:
-                        if from_square == "a1":
-                            if "a2" in state and state["a2"] == ".":
-                                legal_actions.append(f"P_{from_square}_a2")
-                        if from_square == "e1":
-                            if "e2" in state and state["e2"] == ".":
-                                legal_actions.append(f"P_{from_square}_e2")
-                        if "e4" in state and state["e4"] == ".":
-                            legal_actions.append(f"P_{from_square}_e4")
-                    if from_square in ["a2", "b2", "c2", "d2", "e2"]:
-                        if "a3" in state and state["a3"] != ".":
-                            legal_actions.append(f"P_{from_square}_a3")
-                        if "e3" in state and state["e3"] != ".":
-                            legal_actions.append(f"P_{from_square}_e3")
-                        if "e4" in state and state["e4"] != ".":
-                            legal_actions.append(f"P_{from_square}_e4")
-                elif piece in ["R", "N", "B", "Q", "K"]:
-                    # Piece movement
-                    for to_square in state.keys():
-                        if state[to_square] == ".":
-                            legal_actions.append(f"{piece}_{from_square}_{to_square}")
+    for piece, positions in state["board"].items():
+        if piece in ["P", "K"]:
+            for from_pos in positions:
+                to_pos = (state["board"][piece][0], chr(ord(state["board"][piece][1]) + 1))
+                if to_pos[0] != '5':
+                    legal_actions.append(f"{piece}_{convert_coordinates(from_pos)}_{convert_coordinates(to_pos)}")
+                if piece == "P" and from_pos[0] == '2':
+                    to_pos = (state["board"][piece][0], chr(ord(state["board"][piece][1]) + 1))
+                    if to_pos[0] != '5':
+                        legal_actions.append(f"P_{convert_coordinates(from_pos)}_{convert_coordinates(to_pos)}")
+        elif piece == "K":
+            for from_pos in positions:
+                for to_pos in [(int(state["board"][piece][0]) + i, ord(state["board"][piece][1]) + j) for i in range(-1, 2) for j in range(-1, 2) if -1 < i < 2 and -1 < j < 2]:
+                    if to_pos[0] != '5':
+                        legal_actions.append(f"{piece}_{convert_coordinates(from_pos)}_{convert_coordinates(to_pos)}")
     return legal_actions
 
-# Get the observations for each player
 def get_observations(state: State) -> list[PlayerObservation]:
+    """
+    Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state.
+    """
     player_0_obs = {}
     player_1_obs = {}
     
-    # Player 0 sees the board from White's perspective
-    for file in "abcde":
-        for rank in "12345":
-            square = file_rank_to_algebraic(file, rank)
-            if square in state:
-                player_0_obs[square] = state[square]
-            else:
-                player_0_obs[square] = "."
-    
-    # Player 1 sees the board from Black's perspective
-    for file in "abcde":
-        for rank in "12345":
-            square = file_rank_to_algebraic(file, rank)
-            if square in state:
-                player_1_obs[square] = state[square]
-            else:
-                player_1_obs[square] = "."
+    for piece, positions in state["board"].items():
+        for pos in positions:
+            if pos[0] == '1':
+                player_0_obs[convert_coordinates(pos)] = piece
+            elif pos[0] == '5':
+                player_1_obs[convert_coordinates(pos)] = piece
     
     return [player_0_obs, player_1_obs]

@@ -15,159 +15,259 @@ def get_initial_state() -> State:
     """
     Returns the initial game state before any actions are taken.
     """
-    # Initialize the state dictionary
-    state = {
-        'board': {
-            'a1': 'R', 'b1': 'N', 'c1': 'B', 'd1': 'Q', 'e1': 'K',
-            'a2': 'P', 'b2': 'P', 'c2': 'P', 'd2': 'P', 'e2': 'P',
-            'a3': '.', 'b3': '.', 'c3': '.', 'd3': '.', 'e3': '.',
-            'a4': '.', 'b4': '.', 'c4': '.', 'd4': '.', 'e4': '.',
-            'a5': 'r', 'b5': 'n', 'c5': 'b', 'd5': 'q', 'e5': 'k'
-        },
-        'current_player': 0,
-        'turn_count': 0,
-        'winner': None
+    # Initial board setup
+    initial_board = {
+        'r': {'a1': None, 'b1': None, 'c1': None, 'd1': None, 'e1': None},
+        'n': {'a2': None, 'b2': None, 'c2': None, 'd2': None, 'e2': None},
+        'b': {'a3': None, 'b3': None, 'c3': None, 'd3': None, 'e3': None},
+        'q': {'a4': None, 'b4': None, 'c4': None, 'd4': None, 'e4': None},
+        'k': {'a5': None, 'b5': None, 'c5': None, 'd5': None, 'e5': None},
+        'p': {'a2': 'P', 'b2': 'P', 'c2': 'P', 'd2': 'P', 'e2': 'P'},
+        'r': {'a5': 'R', 'b5': 'R', 'c5': 'R', 'd5': 'R', 'e5': 'R'}
     }
-    return state
+    return initial_board
 
 def apply_action(state: State, action: Action) -> State:
     """
     Returns the new state after an action has been taken.
     Ensure that the previous state is not mutated; always return a new state object.
     """
-    def update_board(board: Dict[str, Any], action: Action) -> Dict[str, Any]:
-        """
-        Update the board based on the given action.
-        """
+    def move_piece(piece: str, from_square: str, to_square: str, state: State) -> State:
+        if piece == 'P':
+            if to_square == 'e5' and state[piece][from_square] == 'P':
+                state[piece][to_square] = 'Q'
+            elif to_square == 'e4' and state[piece][from_square] == 'P':
+                state[piece][to_square] = 'Q'
+            else:
+                state[piece][to_square] = state[piece][from_square]
+                state[piece][from_square] = None
+        elif piece == 'N':
+            if abs(ord(to_square[0]) - ord(from_square[0])) == 2 and abs(int(to_square[1]) - int(from_square[1])) == 1:
+                state[piece][to_square] = state[piece][from_square]
+                state[piece][from_square] = None
+            else:
+                raise ValueError("Invalid knight move")
+        elif piece == 'B':
+            x1, y1 = ord(from_square[0]) - ord('a'), int(from_square[1]) - 1
+            x2, y2 = ord(to_square[0]) - ord('a'), int(to_square[1]) - 1
+            if x1 == x2 or y1 == y2:
+                state[piece][to_square] = state[piece][from_square]
+                state[piece][from_square] = None
+            else:
+                raise ValueError("Invalid bishop move")
+        elif piece == 'R':
+            if from_square[0] == to_square[0] or from_square[1] == to_square[1]:
+                state[piece][to_square] = state[piece][from_square]
+                state[piece][from_square] = None
+            else:
+                raise ValueError("Invalid rook move")
+        elif piece == 'Q':
+            if from_square[0] == to_square[0] or from_square[1] == to_square[1]:
+                state[piece][to_square] = state[piece][from_square]
+                state[piece][from_square] = None
+            else:
+                raise ValueError("Invalid queen move")
+        elif piece == 'K':
+            if abs(ord(to_square[0]) - ord(from_square[0])) <= 1 and abs(int(to_square[1]) - int(from_square[1])) <= 1:
+                state[piece][to_square] = state[piece][from_square]
+                state[piece][from_square] = None
+            else:
+                raise ValueError("Invalid king move")
+        elif piece == 'p':
+            if to_square == 'e1' and state[piece][from_square] == 'P':
+                state[piece][to_square] = 'P'
+            elif to_square == 'e2' and state[piece][from_square] == 'P':
+                state[piece][to_square] = 'P'
+            else:
+                state[piece][to_square] = state[piece][from_square]
+                state[piece][from_square] = None
+        else:
+            raise ValueError("Unknown piece type")
+    
+    def promote_pawn(pawn: str, to_square: str, promo: str, state: State) -> State:
+        state[pawn][to_square] = promo
+        return state
+    
+    def castle_rook(rook: str, from_square: str, to_square: str, state: State) -> State:
+        if rook == 'R':
+            if from_square == 'a1' and to_square == 'c1':
+                state['r']['a1'] = None
+                state['r']['c1'] = 'R'
+            elif from_square == 'e1' and to_square == 'c1':
+                state['r']['e1'] = None
+                state['r']['c1'] = 'R'
+            else:
+                raise ValueError("Invalid castling move")
+        elif rook == 'r':
+            if from_square == 'a5' and to_square == 'c5':
+                state['r']['a5'] = None
+                state['r']['c5'] = 'R'
+            elif from_square == 'e5' and to_square == 'c5':
+                state['r']['e5'] = None
+                state['r']['c5'] = 'R'
+            else:
+                raise ValueError("Invalid castling move")
+        else:
+            raise ValueError("Unknown rook type")
+        
+        return state
+    
+    def handle_promotion(action: Action, state: State) -> State:
+        piece, from_square, to_square, promo = action.split('_')
+        if promo != '':
+            return promote_pawn(piece, to_square, promo, state)
+        else:
+            return move_piece(piece, from_square, to_square, state)
+    
+    def handle_castle(action: Action, state: State) -> State:
         piece, from_square, to_square = action.split('_')
-        from_square = f"{from_square[0]}{from_square[1]}"
-        to_square = f"{to_square[0]}{to_square[1]}"
-        
-        # Capture logic
-        if piece == 'P' and abs(ord(from_square[0]) - ord(to_square[0])) == 1 and from_square[1] != to_square[1]:
-            captured_piece = board[from_square]
-            del board[from_square]
-            board[to_square] = captured_piece
-        
-        # Promotion logic
-        if piece == 'P' and (to_square[1] == '1' or to_square[1] == '5'):
-            promoted_piece = input("Enter the promoted piece (Q/R/B/N): ").upper()
-            board[to_square] = promoted_piece
-        
-        # Move logic
-        board[to_square] = board.pop(from_square)
-        
-        return board
+        if piece == 'R':
+            return castle_rook(piece, from_square, to_square, state)
+        elif piece == 'r':
+            return castle_rook(piece, from_square, to_square, state)
+        else:
+            raise ValueError("Unknown rook type")
     
-    def promote_pawn(board: Dict[str, Any], to_square: str) -> None:
-        """
-        Handle pawn promotion.
-        """
-        promoted_piece = input("Enter the promoted piece (Q/R/B/N): ").upper()
-        board[to_square] = promoted_piece
+    def handle_move(action: Action, state: State) -> State:
+        piece, from_square, to_square = action.split('_')
+        return move_piece(piece, from_square, to_square, state)
     
-    def castling(board: Dict[str, Any], from_square: str, to_square: str) -> None:
-        """
-        Handle castling logic (not implemented).
-        """
-        pass
+    def handle_castle_or_promotion(action: Action, state: State) -> State:
+        if action.startswith('P'):
+            return handle_promotion(action, state)
+        elif action.startswith('R') or action.startswith('r'):
+            return handle_castle(action, state)
+        else:
+            return handle_move(action, state)
     
-    def en_passant(board: Dict[str, Any], from_square: str, to_square: str) -> None:
-        """
-        Handle en passant capture.
-        """
-        pass
-    
-    def check_promotion(board: Dict[str, Any], to_square: str) -> bool:
-        """
-        Check if the move results in a pawn promotion.
-        """
-        return board[to_square] == 'P' and (to_square[1] == '1' or to_square[1] == '5')
-    
-    def check_castle(board: Dict[str, Any], from_square: str, to_square: str) -> bool:
-        """
-        Check if the move involves castling.
-        """
-        return False
-    
-    def check_en_passant(board: Dict[str, Any], from_square: str, to_square: str) -> bool:
-        """
-        Check if the move involves en passant.
-        """
-        return False
-    
-    def check_check(board: Dict[str, Any], to_square: str, piece: str) -> bool:
-        """
-        Check if the move puts the king in check.
-        """
-        king_square = 'e1' if board['current_player'] == 0 else 'e5'
-        if piece == 'K':
-            return True
-        return False
-    
-    def check_checkmate(board: Dict[str, Any], to_square: str, piece: str) -> bool:
-        """
-        Check if the move results in checkmate.
-        """
-        return False
-    
-    def check_stalemate(board: Dict[str, Any]) -> bool:
-        """
-        Check if the move results in a stalemate.
-        """
-        return False
-    
-    def check_draw(board: Dict[str, Any]) -> bool:
-        """
-        Check if the move results in a draw.
-        """
-        return False
-    
-    # Apply the action
-    updated_board = update_board(state['board'], action)
-    state['board'] = updated_board
-    
-    # Determine the winner
-    if check_checkmate(updated_board, to_square, piece):
-        state['winner'] = board['current_player']
-    
-    # Increment the turn count
-    state['turn_count'] += 1
-    state['current_player'] = 1 - state['current_player']
-    
-    return state
+    # Parse the action
+    try:
+        parsed_action = action.split('_')
+        if len(parsed_action) == 3:
+            return handle_move(action, state)
+        elif len(parsed_action) == 4:
+            return handle_promotion(action, state)
+        elif len(parsed_action) == 5:
+            return handle_castle_or_promotion(action, state)
+        else:
+            raise ValueError("Invalid action format")
+    except Exception as e:
+        print(f"Error applying action: {e}")
+        return state
 
 def get_current_player(state: State) -> int:
     """
     Returns current player (e.g. 0 or 1), or -4 for terminal state.
     """
-    return state['current_player']
+    white_pieces = sum(1 for piece in state.values() if piece == 'R' or piece == 'N' or piece == 'B' or piece == 'Q' or piece == 'K' or piece == 'P')
+    black_pieces = sum(1 for piece in state.values() if piece == 'r' or piece == 'n' or piece == 'b' or piece == 'q' or piece == 'k' or piece == 'p')
+    if white_pieces > black_pieces:
+        return 0
+    elif black_pieces > white_pieces:
+        return 1
+    else:
+        return -4
 
 def get_player_name(player_id: int) -> str:
     """
     Returns the name of the player.
     """
-    return 'Player 0' if player_id == 0 else 'Player 1'
+    if player_id == 0:
+        return "White"
+    elif player_id == 1:
+        return "Black"
+    else:
+        return "Unknown"
 
 def get_rewards(state: State) -> List[float]:
     """
     Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available.
     """
-    if state['winner'] is not None:
-        return [-1.0, 1.0] if state['winner'] == 0 else [1.0, -1.0]
-    return [0.0, 0.0]
+    white_pieces = sum(1 for piece in state.values() if piece == 'R' or piece == 'N' or piece == 'B' or piece == 'Q' or piece == 'K' or piece == 'P')
+    black_pieces = sum(1 for piece in state.values() if piece == 'r' or piece == 'n' or piece == 'b' or piece == 'q' or piece == 'k' or piece == 'p')
+    if white_pieces > black_pieces:
+        return [1.0, 0.0]
+    elif black_pieces > white_pieces:
+        return [0.0, 1.0]
+    else:
+        return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """
     Returns legal actions for current state. Empty list if terminal.
     """
-    # Implementing the logic to generate legal actions would require a more complex algorithm
-    # This is a placeholder function
-    return []
+    legal_actions = []
+    for piece, positions in state.items():
+        if positions:
+            for from_square, _ in positions.items():
+                for to_square in positions[from_square].keys():
+                    if piece == 'P' and to_square == 'e5' and positions[from_square] == 'P':
+                        legal_actions.append(f"P_{from_square}_{to_square}_Q")
+                    elif piece == 'P' and to_square == 'e4' and positions[from_square] == 'P':
+                        legal_actions.append(f"P_{from_square}_{to_square}_Q")
+                    elif piece == 'P':
+                        legal_actions.append(f"P_{from_square}_{to_square}")
+                    elif piece == 'N':
+                        if abs(ord(to_square[0]) - ord(from_square[0])) == 2 and abs(int(to_square[1]) - int(from_square[1])) == 1:
+                            legal_actions.append(f"N_{from_square}_{to_square}")
+                    elif piece == 'B':
+                        for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                            next_x, next_y = ord(from_square[0]) + dx, int(from_square[1]) + dy
+                            if 65 <= next_x <= 90 and 1 <= next_y <= 5:
+                                if positions.get(f"{chr(next_x)}{next_y}") is None:
+                                    legal_actions.append(f"B_{from_square}_{chr(next_x)}{next_y}")
+                    elif piece == 'R':
+                        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                            next_x, next_y = ord(from_square[0]) + dx, int(from_square[1]) + dy
+                            if 65 <= next_x <= 90 and 1 <= next_y <= 5:
+                                if positions.get(f"{chr(next_x)}{next_y}") is None:
+                                    legal_actions.append(f"R_{from_square}_{chr(next_x)}{next_y}")
+                    elif piece == 'Q':
+                        for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                            next_x, next_y = ord(from_square[0]) + dx, int(from_square[1]) + dy
+                            if 65 <= next_x <= 90 and 1 <= next_y <= 5:
+                                if positions.get(f"{chr(next_x)}{next_y}") is None:
+                                    legal_actions.append(f"Q_{from_square}_{chr(next_x)}{next_y}")
+                    elif piece == 'K':
+                        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                            next_x, next_y = ord(from_square[0]) + dx, int(from_square[1]) + dy
+                            if 65 <= next_x <= 90 and 1 <= next_y <= 5:
+                                if positions.get(f"{chr(next_x)}{next_y}") is None:
+                                    legal_actions.append(f"K_{from_square}_{chr(next_x)}{next_y}")
+    return legal_actions
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """
     Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state.
     """
-    # Placeholder for observations
-    return [{'board': state['board'], 'current_player': state['current_player']} for _ in range(2)]
+    player_0_obs = {}
+    player_1_obs = {}
+    for piece, positions in state.items():
+        if positions:
+            for from_square, to_square in positions.items():
+                if to_square:
+                    if piece == 'P':
+                        if to_square == 'e5':
+                            player_0_obs[f"P_{from_square}_e5"] = True
+                        elif to_square == 'e4':
+                            player_0_obs[f"P_{from_square}_e4"] = True
+                    elif piece == 'N':
+                        player_0_obs[f"N_{from_square}_{to_square}"] = True
+                    elif piece == 'B':
+                        for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                            next_x, next_y = ord(from_square[0]) + dx, int(from_square[1]) + dy
+                            if 65 <= next_x <= 90 and 1 <= next_y <= 5:
+                                player_0_obs[f"B_{from_square}_{chr(next_x)}{next_y}"] = True
+                    elif piece == 'R':
+                        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                            next_x, next_y = ord(from_square[0]) + dx, int(from_square[1]) + dy
+                            if 65 <= next_x <= 90 and 1 <= next_y <= 5:
+                                player_0_obs[f"R_{from_square}_{chr(next_x)}{next_y}"] = True
+                    elif piece == 'Q':
+                        for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                            next_x, next_y = ord(from_square[0]) + dx, int(from_square[1]) + dy
+                            if 65 <= next_x <= 90 and 1 <= next_y <= 5:
+                                player_0_obs[f"Q_{from_square}_{chr(next_x)}{next_y}"] = True
+                    elif piece == 'K':
+                        player_0_obs[f"K_{from_square}_{to_square}"] = True
+    return [player_0_obs, player_0_obs]

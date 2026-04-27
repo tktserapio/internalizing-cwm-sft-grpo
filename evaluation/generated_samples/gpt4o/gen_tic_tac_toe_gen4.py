@@ -14,88 +14,102 @@ PlayerObservation = Dict[str, Any]
 # Constants
 BOARD_SIZE = 6
 WIN_LENGTH = 4
-EMPTY_CELL = None
 PLAYER_MARKS = ['x', 'o']
 
 def get_initial_state() -> State:
     """Returns the initial game state before any actions are taken."""
     return {
-        'board': [[EMPTY_CELL for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)],
+        'board': [['' for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)],
         'current_player': 0,
-        'winner': None,
-        'turn_count': 0
+        'is_terminal': False,
+        'winner': None
     }
 
 def apply_action(state: State, action: Action) -> State:
-    """Returns the new state after an action has been taken."""
+    """
+    Returns the new state after an action has been taken.
+    Ensure that the previous state is not mutated; always return a new state object.
+    """
     new_state = {
-        'board': [row[:] for row in state['board']],  # Deep copy of the board
+        'board': [row[:] for row in state['board']],
         'current_player': state['current_player'],
-        'winner': state['winner'],
-        'turn_count': state['turn_count'] + 1
+        'is_terminal': state['is_terminal'],
+        'winner': state['winner']
     }
     
     row, col = map(int, action.split(','))
-    current_mark = PLAYER_MARKS[state['current_player']]
+    current_mark = PLAYER_MARKS[new_state['current_player']]
+    
+    # Place the current player's mark on the board
     new_state['board'][row][col] = current_mark
     
-    # Check for a winner
-    if check_winner(new_state['board'], row, col, current_mark):
-        new_state['winner'] = state['current_player']
+    # Check for a win or draw
+    if check_winner(new_state['board'], current_mark, row, col):
+        new_state['is_terminal'] = True
+        new_state['winner'] = new_state['current_player']
+    elif all(cell != '' for row in new_state['board'] for cell in row):
+        new_state['is_terminal'] = True
+        new_state['winner'] = None
     
-    # Switch player
-    new_state['current_player'] = 1 - state['current_player']
+    # Switch to the other player
+    new_state['current_player'] = 1 - new_state['current_player']
     
     return new_state
 
 def get_current_player(state: State) -> int:
     """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    if state['winner'] is not None or state['turn_count'] == BOARD_SIZE * BOARD_SIZE:
-        return -4  # Terminal state
-    return state['current_player']
+    return -4 if state['is_terminal'] else state['current_player']
 
 def get_player_name(player_id: int) -> str:
     """Returns the name of the player."""
-    return f"Player {player_id}"
+    return f"Player {player_id + 1}"
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player."""
-    if state['winner'] is not None:
-        return [1.0 if state['winner'] == i else -1.0 for i in range(2)]
-    if state['turn_count'] == BOARD_SIZE * BOARD_SIZE:
-        return [0.0, 0.0]  # Draw
-    return [0.0, 0.0]
+    if not state['is_terminal']:
+        return [0.0, 0.0]
+    if state['winner'] is None:
+        return [0.5, 0.5]  # Draw
+    return [1.0, 0.0] if state['winner'] == 0 else [0.0, 1.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions for current state. Empty list if terminal."""
-    if state['winner'] is not None or state['turn_count'] == BOARD_SIZE * BOARD_SIZE:
-        return []  # No legal actions in terminal state
-    return [
-        f"{row},{col}"
-        for row in range(BOARD_SIZE)
-        for col in range(BOARD_SIZE)
-        if state['board'][row][col] is EMPTY_CELL
-    ]
+    if state['is_terminal']:
+        return []
+    
+    legal_actions = []
+    for row in range(BOARD_SIZE):
+        for col in range(BOARD_SIZE):
+            if state['board'][row][col] == '':
+                legal_actions.append(f"{row},{col}")
+    return legal_actions
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
     return [state, state]
 
-def check_winner(board: List[List[Any]], row: int, col: int, mark: str) -> bool:
-    """Check if placing a mark at (row, col) results in a win."""
-    def check_direction(delta_row: int, delta_col: int) -> bool:
-        count = 0
-        r, c = row, col
-        while 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE and board[r][c] == mark:
-            count += 1
-            r += delta_row
-            c += delta_col
-        return count >= WIN_LENGTH
+def check_winner(board: List[List[str]], mark: str, row: int, col: int) -> bool:
+    """Check if placing a mark at (row, col) wins the game."""
+    return (check_line(board, mark, row, col, 1, 0) or  # Horizontal
+            check_line(board, mark, row, col, 0, 1) or  # Vertical
+            check_line(board, mark, row, col, 1, 1) or  # Diagonal \
+            check_line(board, mark, row, col, 1, -1))   # Diagonal /
 
-    # Check all directions: horizontal, vertical, and two diagonals
-    return (
-        check_direction(0, 1) or  # Horizontal
-        check_direction(1, 0) or  # Vertical
-        check_direction(1, 1) or  # Diagonal /
-        check_direction(1, -1)    # Diagonal \
-    )
+def check_line(board: List[List[str]], mark: str, row: int, col: int, dr: int, dc: int) -> bool:
+    """Check a line in the board for a winning condition."""
+    count = 0
+    # Check in the negative direction
+    r, c = row, col
+    while 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE and board[r][c] == mark:
+        count += 1
+        r -= dr
+        c -= dc
+    
+    # Check in the positive direction
+    r, c = row + dr, col + dc
+    while 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE and board[r][c] == mark:
+        count += 1
+        r += dr
+        c += dc
+    
+    return count >= WIN_LENGTH

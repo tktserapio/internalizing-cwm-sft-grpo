@@ -4,127 +4,119 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Any
 
 # Type definitions
 Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
-# Helper functions
-def parse_coordinates(action: Action) -> Tuple[int, int]:
-    """Parses the source and destination coordinates from the action string."""
-    parts = action.split(" to ")
-    src = tuple(map(int, parts[0].split("(")[1].split(",")[::-1]))
-    dest = tuple(map(int, parts[1].split(",")[::-1]))
-    return src, dest
-
-def is_adjacent(src: Tuple[int, int], dest: Tuple[int, int]) -> bool:
-    """Checks if the source and destination are adjacent."""
-    return abs(src[0] - dest[0]) <= 1 and abs(src[1] - dest[1]) <= 1
-
-def is_center_square(src: Tuple[int, int]) -> bool:
-    """Checks if the source coordinate is the center square."""
-    return src == (2, 2)
-
-# Required Functions
 def get_initial_state() -> State:
     """Returns the initial game state before any actions are taken."""
     return {
-        "state": {
-            "board": [
-                [None, None, None, None, None],
-                [None, None, None, None, None],
-                [None, None, None, None, None],
-                [None, None, None, None, None],
-                [None, None, None, None, None]
-            ],
-            "turn": 0,
-            "stunned_units": [],
-            "winner": None
+        'board': {
+            (0, 0): {'player': 0},
+            (0, 4): {'player': 0},
+            (1, 0): {'player': None},
+            (1, 4): {'player': None},
+            (2, 0): {'player': None},
+            (2, 1): {'player': None},
+            (2, 2): {'player': None},
+            (2, 3): {'player': None},
+            (2, 4): {'player': None},
+            (3, 0): {'player': None},
+            (3, 4): {'player': None},
+            (4, 0): {'player': 1},
+            (4, 1): {'player': None},
+            (4, 2): {'player': None},
+            (4, 3): {'player': None},
+            (4, 4): {'player': 1}
         },
-        "players": {
-            "blue": {"units": [(0, 0), (0, 4)]},
-            "red": {"units": [(4, 0), (4, 4)]}
-        }
+        'current_player': 0,
+        'turn_count': 0,
+        'stunned_units': []
     }
 
 def apply_action(state: State, action: Action) -> State:
-    """Returns the new state after an action has been taken."""
+    """Returns the new state after an action has been taken. Ensure the previous state is not mutated; always return a new state object."""
     new_state = state.copy()
-    src, dest = parse_coordinates(action)
-    if new_state["state"]["board"][src[0]][src[1]] is None:
-        raise ValueError(f"Source square {src} is empty.")
+    new_state['turn_count'] += 1
     
-    # Apply movement
-    new_state["state"]["board"][dest[0]][dest[1]] = new_state["state"]["board"][src[0]][src[1]]
-    new_state["state"]["board"][src[0]][src[1]] = None
+    # Parse the action
+    source, target = action.split(' to ')
+    source = tuple(map(int, source.split(',')))
+    target = tuple(map(int, target.split(',')))
+    
+    # Check if the action is valid
+    if source not in new_state['board']:
+        raise ValueError(f"Invalid source position {source}")
+    if target in new_state['board']:
+        raise ValueError(f"Target position {target} is already occupied")
+    
+    # Apply the move
+    new_state['board'][target] = new_state['board'].pop(source)
+    new_state['board'][target]['player'] = new_state['current_player']
     
     # Check for stun
-    for unit in new_state["players"]["blue"]["units"]:
-        if is_adjacent(unit, dest):
-            new_state["stunned_units"].append(unit)
-            break
-    for unit in new_state["players"]["red"]["units"]:
-        if is_adjacent(unit, dest):
-            new_state["stunned_units"].append(unit)
-            break
+    for pos, unit in new_state['board'].items():
+        if unit['player'] == new_state['current_player']:
+            if abs(pos[0] - target[0]) + abs(pos[1] - target[1]) == 1:
+                new_state['stunned_units'].append(pos)
     
-    # Update turn
-    new_state["state"]["turn"] += 1
+    # Update current player
+    new_state['current_player'] = 1 if new_state['current_player'] == 0 else 0
     
-    # Check for winner
-    if is_center_square(dest):
-        new_state["winner"] = "blue" if dest in new_state["players"]["blue"]["units"] else "red"
+    # Check for win condition
+    if target == (2, 2):
+        new_state['stunned_units'] = []  # Clear stun after winning
+        new_state['current_player'] = -4  # Terminal state
     
     return new_state
 
 def get_current_player(state: State) -> int:
     """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    if state["winner"] is not None:
-        return -4
-    return state["state"]["turn"] % 2
+    return state['current_player']
 
 def get_player_name(player_id: int) -> str:
     """Returns the name of the player."""
-    return "blue" if player_id == 0 else "red"
+    return 'Blue' if player_id == 0 else 'Red'
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    if state["winner"] is not None:
-        return [1.0, 0.0] if state["winner"] == "blue" else [0.0, 1.0]
+    if state['current_player'] == -4:
+        return [1.0, 1.0]  # Both players win
     return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions for current state. Empty list if terminal."""
     legal_actions = []
-    for player in ["blue", "red"]:
-        for unit in state["players"][player]["units"]:
-            for i in range(5):
-                for j in range(5):
-                    if state["state"]["board"][i][j] is None:
-                        src = (i, j)
-                        dest = (unit[0], unit[1])
-                        if is_adjacent(src, dest):
-                            legal_actions.append(f"move ({i},{j}) to ({unit[0]},{unit[1]})")
-                        elif is_center_square((i, j)):
-                            legal_actions.append(f"move ({i},{j}) to ({unit[0]},{unit[1]})")
-                        else:
-                            legal_actions.append(f"move ({i},{j}) to ({unit[0]},{unit[1]})")
+    board = state['board']
+    current_player = state['current_player']
+    
+    for pos, unit in board.items():
+        if unit['player'] == current_player:
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                next_pos = (pos[0] + dx, pos[1] + dy)
+                if next_pos in board and board[next_pos]['player'] is None:
+                    legal_actions.append(f"move {pos} to {next_pos}")
+    
     return legal_actions
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    blue_obs = {
-        "board": state["state"]["board"],
-        "turn": state["state"]["turn"],
-        "stunned_units": state["stunned_units"],
-        "winner": state["winner"]
-    }
-    red_obs = {
-        "board": state["state"]["board"],
-        "turn": state["state"]["turn"],
-        "stunned_units": state["stunned_units"],
-        "winner": state["winner"]
-    }
-    return [blue_obs, red_obs]
+    board = state['board']
+    observations = [
+        {
+            'board': {k: v['player'] for k, v in board.items()},
+            'current_player': state['current_player'],
+            'turn_count': state['turn_count'],
+            'stunned_units': state['stunned_units']
+        },
+        {
+            'board': {k: v['player'] for k, v in board.items()},
+            'current_player': state['current_player'],
+            'turn_count': state['turn_count'],
+            'stunned_units': state['stunned_units']
+        }
+    ]
+    return observations

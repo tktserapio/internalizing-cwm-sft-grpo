@@ -4,66 +4,68 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
+from typing import *
 import random
-from typing import Any, List, Dict
 
 # Type definitions
 Action = str
-State = Dict[str, Any]
-PlayerObservation = Dict[str, Any]
+State = dict[str, Any]
+PlayerObservation = dict[str, Any]
 
-# Helper function to initialize the game state
-def get_initial_state() -> State:
-    # Initialize the deck and shuffle it
-    deck = list(range(1, 53))  # 1-13 for each suit (Ace through King)
+# Helper function to generate a shuffled deck
+def shuffle_deck() -> list[int]:
+    deck = list(range(1, 53))
     random.shuffle(deck)
-    # Deal the cards
-    dealer_hand = deck[:26]
+    return deck
+
+# Initial state of the game
+def get_initial_state() -> State:
+    # Initialize the deck
+    deck = shuffle_deck()
+    # Shuffle the deck and deal cards to each player
+    dealer_cards = deck[:26]
     upcard = deck[26]
     stockpile = deck[27:]
     
-    return {
-        "dealer_hand": dealer_hand,
+    # Create the initial state
+    state = {
+        "deck": deck,
+        "dealer_cards": dealer_cards,
         "upcard": upcard,
         "stockpile": stockpile,
-        "knocked": False,
-        "knock_card": None,
-        "round_number": 1,
         "current_player": 0,
-        "phase": "Draw",
-        "deadwood": {0: 0, 1: 0},
-        "melds": {0: [], 1: []}
+        "knocked": False,
+        "knock_card": 10,
+        "deadwood": {},
+        "melds": {}
     }
+    return state
 
 # Apply an action to the game state
 def apply_action(state: State, action: Action) -> State:
     if action == "Draw stock":
         state["stockpile"].append(state["upcard"])
         state["upcard"] = state["stockpile"].pop()
-        state["phase"] = "Discard"
-        state["current_player"] = (state["current_player"] + 1) % 2
+        state["current_player"] = 1 if state["current_player"] == 0 else 0
     elif action == "Draw upcard":
-        state["stockpile"].append(state["upcard"])
+        state["dealer_cards"].append(state["upcard"])
         state["upcard"] = state["stockpile"].pop()
-        state["phase"] = "Discard"
-        state["current_player"] = (state["current_player"] + 1) % 2
+        state["current_player"] = 1 if state["current_player"] == 0 else 0
     elif action.startswith("Action: "):
-        card_to_discard = int(action.split(":")[1])
-        state["dealer_hand"].remove(card_to_discard)
-        state["stockpile"].append(card_to_discard)
-        state["upcard"] = state["stockpile"].pop()
-        state["phase"] = "Discard"
-        state["current_player"] = (state["current_player"] + 1) % 2
-    elif action == "Action: Knock":
+        card = int(action.split(":")[1])
+        state["dealer_cards"].remove(card)
+        state["current_player"] = 1 if state["current_player"] == 0 else 0
+    elif action == "Knock":
         state["knocked"] = True
-        state["knock_card"] = state["upcard"]
-        state["phase"] = "Layoff"
-    elif action == "Action: Done":
-        state["phase"] = "Layoff"
+        state["knock_card"] = 10
+    elif action == "Done":
+        state["knocked"] = True
+        state["knock_card"] = 10
     elif action == "Pass":
-        state["phase"] = "Layoff"
+        state["knocked"] = True
     else:
         raise ValueError(f"Invalid action: {action}")
+    
     return state
 
 # Get the current player
@@ -75,62 +77,43 @@ def get_player_name(player_id: int) -> str:
     return f"Player {player_id}"
 
 # Get the rewards per player
-def get_rewards(state: State) -> List[float]:
+def get_rewards(state: State) -> list[float]:
     if state["knocked"]:
-        return [0.0, 0.0]  # No rewards yet, waiting for layoff
+        return [0.0, 0.0]  # No rewards yet
     return [0.0, 0.0]
 
-# Get legal actions for the current state
-def get_legal_actions(state: State) -> List[Action]:
-    if state["phase"] == "Draw":
+# Get the legal actions for the current state
+def get_legal_actions(state: State) -> list[Action]:
+    current_player = get_current_player(state)
+    if state["knocked"]:
+        return ["Done"]
+    if state["knocked"] and state["knock_card"] <= state["deadwood"][current_player]:
+        return ["Knock"]
+    if state["current_player"] == 0:
         return ["Draw stock", "Draw upcard"]
-    elif state["phase"] == "Discard":
-        return ["Action: " + str(card) for card in state["dealer_hand"]]
-    elif state["phase"] == "Layoff":
-        return []
     else:
-        raise ValueError("Invalid phase")
+        return ["Draw stock", "Draw upcard", "Action: 2c", "Action: 3d", "Action: 4h", "Action: 5s", "Action: 6c", "Action: 7h", "Action: 8d", "Action: 9t", "Action: Ac", "Action: 2s", "Action: 3s", "Action: 4s", "Action: 5s", "Action: 6s", "Action: 7s", "Action: 8s", "Action: 9s", "Action: Tc", "Action: Ts", "Action: 9c", "Action: 8c", "Action: 7c", "Action: 6c", "Action: 5c", "Action: 4c", "Action: 3c", "Action: 2c", "Action: 10c", "Action: Jc", "Action: Qc", "Action: Kc", "Action: 10s", "Action: Js", "Action: Qs", "Action: Ks", "Action: 10h", "Action: Jh", "Action: Qh", "Action: Kh", "Action: 10d", "Action: Jd", "Action: Qd", "Action: Kd", "Action: Done"]
+    else:
+        return ["Draw stock", "Draw upcard", "Action: 2c", "Action: 3d", "Action: 4h", "Action: 5s", "Action: 6c", "Action: 7h", "Action: 8d", "Action: 9t", "Action: Ac", "Action: 2s", "Action: 3s", "Action: 4s", "Action: 5s", "Action: 6s", "Action: 7s", "Action: 8s", "Action: 9s", "Action: Tc", "Action: Ts", "Action: 9c", "Action: 8c", "Action: 7c", "Action: 6c", "Action: 5c", "Action: 4c", "Action: 3c", "Action: 2c", "Action: 10c", "Action: Jc", "Action: Qc", "Action: Kc", "Action: 10s", "Action: Js", "Action: Qs", "Action: Ks", "Action: 10h", "Action: Jh", "Action: Qh", "Action: Kh", "Action: 10d", "Action: Jd", "Action: Qd", "Action: Kd", "Action: Done"]
 
 # Get the observations for the current state
-def get_observations(state: State) -> List[PlayerObservation]:
-    dealer_hand = state["dealer_hand"]
-    upcard = state["upcard"]
-    stockpile = state["stockpile"]
-    deadwood = state["deadwood"]
-    melds = state["melds"]
+def get_observations(state: State) -> list[PlayerObservation]:
     current_player = get_current_player(state)
-    player_0_obs = {
-        "dealer_hand": dealer_hand,
-        "upcard": upcard,
-        "stockpile": stockpile,
-        "knocked": state["knocked"],
-        "knock_card": state["knock_card"],
-        "round_number": state["round_number"],
-        "current_player": current_player,
-        "phase": state["phase"],
-        "deadwood": deadwood[current_player],
-        "melds": melds[current_player]
-    }
-    player_1_obs = {
-        "dealer_hand": dealer_hand,
-        "upcard": upcard,
-        "stockpile": stockpile,
-        "knocked": state["knocked"],
-        "knock_card": state["knock_card"],
-        "round_number": state["round_number"],
-        "current_player": 1 - current_player,
-        "phase": state["phase"],
-        "deadwood": deadwood[1 - current_player],
-        "melds": melds[1 - current_player]
-    }
-    return [player_0_obs, player_1_obs]
+    deadwood = state["deadwood"][current_player]
+    melds = state["melds"][current_player]
+    return [
+        {
+            "deadwood": deadwood,
+            "melds": melds
+        },
+        {
+            "deadwood": state["deadwood"][1 - current_player],
+            "melds": state["melds"][1 - current_player]
+        }
+    ]
 
-# Resample history to generate a valid sequence of actions
-def resample_history(obs_action_history: List[tuple[PlayerObservation, Action | None]], player_id: int) -> List[Action]:
-    # This is a placeholder function for demonstration purposes
-    # In a real implementation, this would involve sampling valid sequences based on the observed history
-    # For simplicity, we'll just return a fixed sequence of actions
-    if player_id == 0:
-        return ["Draw stock", "Action: 2c", "Action: 3c", "Action: 4c", "Action: 5c", "Action: 6c", "Action: 7c", "Action: 8c", "Action: 9c", "Action: 10c", "Action: Jc", "Action: Qc", "Action: Ac", "Action: 2d", "Action: 3d", "Action: 4d", "Action: 5d", "Action: 6d", "Action: 7d", "Action: 8d", "Action: 9d", "Action: 10d", "Action: Jd", "Action: Qd", "Action: Ad", "Action: 2h", "Action: 3h", "Action: 4h", "Action: 5h", "Action: 6h", "Action: 7h", "Action: 8h", "Action: 9h", "Action: 10h", "Action: Jh", "Action: Qh", "Action: Ah", "Action: 2s", "Action: 3s", "Action: 4s", "Action: 5s", "Action: 6s", "Action: 7s", "Action: 8s", "Action: 9s", "Action: 10s", "Action: Js", "Action: Qs", "Action: As", "Action: Knock"]
-    else:
-        return ["Draw stock", "Action: 2c", "Action: 3c", "Action: 4c", "Action: 5c", "Action: 6c", "Action: 7c", "Action: 8c", "Action: 9c", "Action: 10c", "Action: Jc", "Action: Qc", "Action: Ac", "Action: 2d", "Action: 3d", "Action: 4d", "Action: 5d", "Action: 6d", "Action: 7d", "Action: 8d", "Action: 9d", "Action: 10d", "Action: Jd", "Action: Qd", "Action: Ad", "Action: 2h", "Action: 3h", "Action: 4h", "Action: 5h", "Action: 6h", "Action: 7h", "Action: 8h", "Action: 9h", "Action: 10h", "Action: Jh", "Action: Qh", "Action: Ah", "Action: 2s", "Action: 3s", "Action: 4s", "Action: 5s", "Action: 6s", "Action: 7s", "Action: 8s", "Action: 9s", "Action: 10s", "Action: Js", "Action: Qs", "Action: As", "Action: Knock"]
+# Resample history
+def resample_history(obs_action_history: list[tuple[PlayerObservation, Action | None]], player_id: int) -> list[Action]:
+    # For simplicity, we'll just randomly select actions from the legal ones
+    legal_actions = get_legal_actions(resample_history.get_initial_state())
+    return [random.choice(legal_actions) for _ in obs_action_history]

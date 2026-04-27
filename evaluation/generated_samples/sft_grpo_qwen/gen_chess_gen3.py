@@ -15,20 +15,26 @@ def get_initial_state() -> State:
     """
     Returns the initial game state before any actions are taken.
     """
-    # Initialize the state dictionary
-    state = {
-        'board': {
-            'a1': 'R', 'b1': 'N', 'c1': 'B', 'd1': 'Q', 'e1': 'K',
-            'a2': 'P', 'b2': 'P', 'c2': 'P', 'd2': 'P', 'e2': 'P',
-            'a3': '.', 'b3': '.', 'c3': '.', 'd3': '.', 'e3': '.',
-            'a4': '.', 'b4': '.', 'c4': '.', 'd4': '.', 'e4': '.',
-            'a5': 'r', 'b5': 'n', 'c5': 'b', 'd5': 'q', 'e5': 'k'
-        },
-        'turn': 0,
-        'winner': None,
-        'running_reward': [0.0, 0.0]
+    # Initialize the board state
+    board = {
+        'r': {'a1': None, 'b1': None, 'c1': None, 'd1': None, 'e1': None},
+        'n': {'a2': None, 'b2': None, 'c2': None, 'd2': None, 'e2': None},
+        'b': {'a3': None, 'b3': None, 'c3': None, 'd3': None, 'e3': None},
+        'q': {'a4': None, 'b4': None, 'c4': None, 'd4': None, 'e4': None},
+        'k': {'a5': None, 'b5': None, 'c5': None, 'd5': None, 'e5': None},
+        'p': {
+            'a2': {'color': 'w', 'rank': 2, 'file': 'a'},
+            'b2': {'color': 'w', 'rank': 2, 'file': 'b'},
+            'c2': {'color': 'w', 'rank': 2, 'file': 'c'},
+            'd2': {'color': 'w', 'rank': 2, 'file': 'd'},
+            'e2': {'color': 'w', 'rank': 2, 'file': 'e'}
+        }
     }
-    return state
+    return {
+        'board': board,
+        'turn': 0,
+        'winner': -4
+    }
 
 def apply_action(state: State, action: Action) -> State:
     """
@@ -36,91 +42,289 @@ def apply_action(state: State, action: Action) -> State:
     Ensure that the previous state is not mutated; always return a new state object.
     """
     new_state = state.copy()
-    
-    # Parse the action
     piece, from_square, to_square = action.split('_')
-    from_square = from_square.lower()
-    to_square = to_square.lower()
-
-    # Get the current player
-    current_player = state['turn']
+    from_square = f"{from_square[0]}{from_square[1]}"
+    to_square = f"{to_square[0]}{to_square[1]}"
     
-    # Validate the action
-    if not validate_action(new_state, piece, from_square, to_square):
-        raise ValueError("Invalid action")
+    # Get the piece and its color
+    piece_color = state['board'][piece][from_square]['color']
+    piece_type = piece
     
-    # Perform the move
-    perform_move(new_state, piece, from_square, to_square)
+    # Determine the piece movement logic based on the piece type
+    if piece == 'p':
+        # Pawn movement
+        if piece_color == 'w' and int(to_square[1]) == 1:
+            # Promotion
+            new_state = promote_pawn(new_state, from_square, to_square, piece_type)
+        elif piece_color == 'w' and int(to_square[1]) == 2:
+            # Move forward one square
+            new_state = move_pawn(new_state, from_square, to_square)
+        elif piece_color == 'b' and int(to_square[1]) == 5:
+            # Promotion
+            new_state = promote_pawn(new_state, from_square, to_square, piece_type)
+        elif piece_color == 'b' and int(to_square[1]) == 4:
+            # Move forward one square
+            new_state = move_pawn(new_state, from_square, to_square)
+        else:
+            # Regular move
+            new_state = move_pawn(new_state, from_square, to_square)
+    elif piece == 'n':
+        # Knight movement
+        new_state = move_knight(new_state, from_square, to_square)
+    elif piece == 'b':
+        # Bishop movement
+        new_state = move_bishop(new_state, from_square, to_square)
+    elif piece == 'r':
+        # Rook movement
+        new_state = move_rook(new_state, from_square, to_square)
+    elif piece == 'q':
+        # Queen movement
+        new_state = move_queen(new_state, from_square, to_square)
+    elif piece == 'k':
+        # King movement
+        new_state = move_king(new_state, from_square, to_square)
     
     # Update the turn
-    new_state['turn'] = (current_player + 1) % 2
-    
-    # Determine the winner
-    winner = determine_winner(new_state)
-    if winner:
-        new_state['winner'] = winner
-        new_state['running_reward'] = [1.0, -1.0] if winner == 0 else [-1.0, 1.0]
-    
+    new_state['turn'] = (new_state['turn'] + 1) % 2
+    new_state['winner'] = get_winner(new_state)
     return new_state
 
-def validate_action(state: State, piece: str, from_square: str, to_square: str) -> bool:
+def move_pawn(state: State, from_square: str, to_square: str) -> State:
     """
-    Validates the action based on the current state and the rules of the game.
+    Moves a pawn from `from_square` to `to_square`.
     """
-    # Check if the piece exists at the from_square
-    if from_square not in state['board']:
-        return False
-    
-    # Check if the to_square is within the board bounds
-    if to_square not in state['board']:
-        return False
-    
-    # Check if the piece matches the given piece
-    if state['board'][from_square] != piece:
-        return False
-    
-    # Additional validation logic can be added here
-    return True
+    piece_color = state['board']['p'][from_square]['color']
+    new_state = state.copy()
+    new_state['board']['p'][from_square] = None
+    new_state['board']['p'][to_square] = {'color': piece_color, 'rank': int(to_square[1]), 'file': to_square[0]}
+    return new_state
 
-def perform_move(state: State, piece: str, from_square: str, to_square: str) -> None:
+def promote_pawn(state: State, from_square: str, to_square: str, piece_type: str) -> State:
     """
-    Performs the move on the board.
+    Promotes a pawn to a new piece type.
     """
-    # Remove the piece from the from_square
-    state['board'][from_square] = '.'
-    
-    # Place the piece at the to_square
-    state['board'][to_square] = piece
+    piece_color = state['board']['p'][from_square]['color']
+    new_state = state.copy()
+    new_state['board']['p'][to_square] = {'color': piece_color, 'rank': int(to_square[1]), 'file': to_square[0], 'type': piece_type}
+    return new_state
 
-def get_current_player(state: State) -> int:
+def move_knight(state: State, from_square: str, to_square: str) -> State:
     """
-    Returns current player (e.g. 0 or 1), or -4 for terminal state.
+    Moves a knight from `from_square` to `to_square`.
     """
-    return state['turn']
+    piece_color = state['board']['n'][from_square]['color']
+    new_state = state.copy()
+    new_state['board']['n'][from_square] = None
+    new_state['board']['n'][to_square] = {'color': piece_color, 'rank': int(to_square[1]), 'file': to_square[0]}
+    return new_state
 
-def get_player_name(player_id: int) -> str:
+def move_bishop(state: State, from_square: str, to_square: str) -> State:
     """
-    Returns the name of the player.
+    Moves a bishop from `from_square` to `to_square`.
     """
-    return 'Player 0' if player_id == 0 else 'Player 1'
+    piece_color = state['board']['b'][from_square]['color']
+    new_state = state.copy()
+    new_state['board']['b'][from_square] = None
+    new_state['board']['b'][to_square] = {'color': piece_color, 'rank': int(to_square[1]), 'file': to_square[0]}
+    return new_state
 
-def get_rewards(state: State) -> List[float]:
+def move_rook(state: State, from_square: str, to_square: str) -> State:
     """
-    Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available.
+    Moves a rook from `from_square` to `to_square`.
     """
-    return state['running_reward']
+    piece_color = state['board']['r'][from_square]['color']
+    new_state = state.copy()
+    new_state['board']['r'][from_square] = None
+    new_state['board']['r'][to_square] = {'color': piece_color, 'rank': int(to_square[1]), 'file': to_square[0]}
+    return new_state
+
+def move_queen(state: State, from_square: str, to_square: str) -> State:
+    """
+    Moves a queen from `from_square` to `to_square`.
+    """
+    piece_color = state['board']['q'][from_square]['color']
+    new_state = state.copy()
+    new_state['board']['q'][from_square] = None
+    new_state['board']['q'][to_square] = {'color': piece_color, 'rank': int(to_square[1]), 'file': to_square[0]}
+    return new_state
+
+def move_king(state: State, from_square: str, to_square: str) -> State:
+    """
+    Moves a king from `from_square` to `to_square`.
+    """
+    piece_color = state['board']['k'][from_square]['color']
+    new_state = state.copy()
+    new_state['board']['k'][from_square] = None
+    new_state['board']['k'][to_square] = {'color': piece_color, 'rank': int(to_square[1]), 'file': to_square[0]}
+    return new_state
+
+def get_winner(state: State) -> int:
+    """
+    Determines the winner based on the current state.
+    """
+    # Check for checkmate
+    for piece, positions in state['board'].items():
+        for position, piece_info in positions.items():
+            if piece_info and piece_info['color'] != 'w' ^ state['turn']:
+                # Check for checkmate
+                if not get_legal_actions(state):
+                    return piece_info['color']
+    return -4
 
 def get_legal_actions(state: State) -> List[Action]:
     """
-    Returns legal actions for current state. Empty list if terminal.
+    Returns legal actions for the current state.
     """
-    # Implement logic to generate legal actions
-    # This is a placeholder for now
-    return []
+    legal_actions = []
+    for piece, positions in state['board'].items():
+        for position, piece_info in positions.items():
+            if piece_info:
+                if piece == 'p':
+                    legal_actions.extend(get_legal_pawn_actions(state, position))
+                elif piece == 'n':
+                    legal_actions.extend(get_legal_knight_actions(state, position))
+                elif piece == 'b':
+                    legal_actions.extend(get_legal_bishop_actions(state, position))
+                elif piece == 'r':
+                    legal_actions.extend(get_legal_rook_actions(state, position))
+                elif piece == 'q':
+                    legal_actions.extend(get_legal_queen_actions(state, position))
+                elif piece == 'k':
+                    legal_actions.extend(get_legal_king_actions(state, position))
+    return legal_actions
+
+def get_legal_pawn_actions(state: State, position: str) -> List[Action]:
+    """
+    Returns legal pawn actions for a given position.
+    """
+    piece_color = state['board']['p'][position]['color']
+    rank = int(position[1])
+    file = position[0]
+    legal_actions = []
+    if piece_color == 'w':
+        if rank == 2:
+            legal_actions.append(f"P_{position}_e4")
+        else:
+            legal_actions.append(f"P_{position}_e4")
+            legal_actions.append(f"P_{position}_e5")
+    else:
+        if rank == 5:
+            legal_actions.append(f"P_{position}_e4")
+        else:
+            legal_actions.append(f"P_{position}_e4")
+            legal_actions.append(f"P_{position}_e3")
+    return legal_actions
+
+def get_legal_knight_actions(state: State, position: str) -> List[Action]:
+    """
+    Returns legal knight actions for a given position.
+    """
+    piece_color = state['board']['n'][position]['color']
+    rank = int(position[1])
+    file = position[0]
+    legal_actions = []
+    for dx, dy in [(2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]:
+        nx, ny = rank + dx, file + dy
+        if 1 <= nx <= 5 and 'a' <= ny <= 'e':
+            target_position = f"{ny}{nx}"
+            if state['board']['n'][target_position] is None:
+                legal_actions.append(f"N_{position}_{target_position}")
+            elif state['board']['n'][target_position]['color'] != piece_color:
+                legal_actions.append(f"N_{position}_{target_position}")
+    return legal_actions
+
+def get_legal_bishop_actions(state: State, position: str) -> List[Action]:
+    """
+    Returns legal bishop actions for a given position.
+    """
+    piece_color = state['board']['b'][position]['color']
+    rank = int(position[1])
+    file = position[0]
+    legal_actions = []
+    for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+        nx, ny = rank + dx, file + dy
+        while 1 <= nx <= 5 and 'a' <= ny <= 'e':
+            target_position = f"{ny}{nx}"
+            if state['board']['b'][target_position] is None:
+                legal_actions.append(f"B_{position}_{target_position}")
+            elif state['board']['b'][target_position]['color'] != piece_color:
+                legal_actions.append(f"B_{position}_{target_position}")
+                break
+            else:
+                break
+    return legal_actions
+
+def get_legal_rook_actions(state: State, position: str) -> List[Action]:
+    """
+    Returns legal rook actions for a given position.
+    """
+    piece_color = state['board']['r'][position]['color']
+    rank = int(position[1])
+    file = position[0]
+    legal_actions = []
+    for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+        nx, ny = rank + dx, file + dy
+        while 1 <= nx <= 5 and 'a' <= ny <= 'e':
+            target_position = f"{ny}{nx}"
+            if state['board']['r'][target_position] is None:
+                legal_actions.append(f"R_{position}_{target_position}")
+            elif state['board']['r'][target_position]['color'] != piece_color:
+                legal_actions.append(f"R_{position}_{target_position}")
+                break
+            else:
+                break
+    return legal_actions
+
+def get_legal_queen_actions(state: State, position: str) -> List[Action]:
+    """
+    Returns legal queen actions for a given position.
+    """
+    piece_color = state['board']['q'][position]['color']
+    rank = int(position[1])
+    file = position[0]
+    legal_actions = []
+    for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+        nx, ny = rank + dx, file + dy
+        while 1 <= nx <= 5 and 'a' <= ny <= 'e':
+            target_position = f"{ny}{nx}"
+            if state['board']['q'][target_position] is None:
+                legal_actions.append(f"Q_{position}_{target_position}")
+            elif state['board']['q'][target_position]['color'] != piece_color:
+                legal_actions.append(f"Q_{position}_{target_position}")
+                break
+            else:
+                break
+    return legal_actions
+
+def get_legal_king_actions(state: State, position: str) -> List[Action]:
+    """
+    Returns legal king actions for a given position.
+    """
+    piece_color = state['board']['k'][position]['color']
+    rank = int(position[1])
+    file = position[0]
+    legal_actions = []
+    for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]:
+        nx, ny = rank + dx, file + dy
+        if 1 <= nx <= 5 and 'a' <= ny <= 'e':
+            target_position = f"{ny}{nx}"
+            if state['board']['k'][target_position] is None:
+                legal_actions.append(f"K_{position}_{target_position}")
+    return legal_actions
+
+def get_rewards(state: State) -> List[float]:
+    """
+    Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards.
+    """
+    winner = get_winner(state)
+    if winner != -4:
+        return [1.0, -1.0] if winner == state['turn'] else [-1.0, 1.0]
+    return [0.0, 0.0]
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """
     Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state.
     """
-    # Placeholder for observations
-    return [{'board': state['board'], 'turn': state['turn']} for _ in range(2)]
+    player_0_obs = state['board'].copy()
+    player_1_obs = state['board'].copy()
+    return [player_0_obs, player_1_obs]

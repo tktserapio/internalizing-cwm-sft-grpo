@@ -4,136 +4,83 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-import copy
+from typing import Dict, List, Tuple
 
 # Type definitions
 Action = str
-State = dict[str, Any]
-PlayerObservation = dict[str, Any]
+State = Dict[str, Any]
+PlayerObservation = Dict[str, Any]
 
-# Helper function to check if a move connects all three sides
-def is_winner(state: State, player: int) -> bool:
-    # Extract the board from the state
-    board = state['board']
-    # Check if the player's stones form a connected group that touches all three sides
-    for side in ['A', 'B', 'C']:
-        for cell in board[side]:
-            if not is_connected(board, cell, player):
-                return False
-    return True
+# Helper function to initialize the board state
+def _init_board(size: int) -> State:
+    board = {}
+    for i in range(1, size * (size + 1) // 2 + 1):
+        board[f"{chr(ord('A') + (i - 1) // (size + 1))}{(i - 1) % (size + 1) + 1}"] = {'color': None, 'type': 'empty'}
+    return board
 
-# Helper function to check if a group of stones is connected
-def is_connected(board: dict[str, set[int]], cell: int, player: int) -> bool:
-    def dfs(cell: int, visited: set[int]) -> bool:
-        if cell in visited:
-            return False
-        visited.add(cell)
-        for neighbor in board[str(cell)]:
-            if neighbor in visited:
-                continue
-            if not is_connected(board, neighbor, player):
-                return False
-        return True
-    return dfs(cell, set())
+# Function to convert coordinates to a single string representation
+def _coord_to_str(coord: Tuple[int, int]) -> Action:
+    return f"{ord(coord[0]) - ord('A')},{coord[1] - 1}"
 
-# Helper function to get the neighbors of a cell
-def get_neighbors(cell: int) -> set[int]:
-    neighbors = set()
-    if cell % 3 == 0:
-        neighbors.add(cell - 3)
-    if cell % 3 != 2:
-        neighbors.add(cell + 1)
-    if cell % 3 != 0:
-        neighbors.add(cell - 1)
-    return neighbors
+# Function to convert a single string representation back to coordinates
+def _str_to_coord(action: Action) -> Tuple[int, int]:
+    coord = action.split(',')
+    return (ord(coord[0].upper()) - ord('A'), int(coord[1]))
 
-# Initial state
+# Function to get the initial state of the game
 def get_initial_state() -> State:
-    return {
-        'board': {
-            'A': set([1, 3, 6]),
-            'B': set([2, 5, 9]),
-            'C': set([6, 7, 8, 9])
-        },
-        'turn': 0,
-        'winner': None
-    }
+    # Size of the board is 4 for simplicity
+    size = 4
+    return _init_board(size)
 
-# Apply an action to the state
+# Function to apply an action to the state
 def apply_action(state: State, action: Action) -> State:
-    new_state = copy.deepcopy(state)
-    player = state['turn'] % 2
-    cell = int(action)
-    
-    # Update the board with the new stone
-    new_state['board'][str(cell)].add(cell)
-    
-    # Switch the turn
-    new_state['turn'] += 1
-    
-    # Check if the move leads to a winner
-    if is_winner(new_state, player):
-        new_state['winner'] = player
+    # Convert action to coordinates
+    x, y = _str_to_coord(action)
+    # Check if the action is valid
+    if state.get(_coord_to_str((x, y)), {}).get('type') == 'empty':
+        state[_coord_to_str((x, y))] = {'color': 1 if state['A'].get('color', 0) else 0, 'type': 'occupied'}
+        return state
     else:
-        new_state['winner'] = None
-    
-    return new_state
+        raise ValueError("Invalid move")
 
-# Get the current player
+# Function to get the current player
 def get_current_player(state: State) -> int:
-    return state['turn'] % 2
+    # Determine the current player based on the first cell's color
+    for key in state.keys():
+        if state[key]['type'] == 'occupied':
+            return state[key]['color']
+    return -4  # Terminal state
 
-# Get the name of the player
+# Function to get the name of the player
 def get_player_name(player_id: int) -> str:
-    return 'Black' if player_id == 0 else 'White'
+    return 'Black' if player_id == 1 else 'White'
 
-# Get the rewards per player
-def get_rewards(state: State) -> list[float]:
-    if state['winner'] is not None:
-        return [1.0, 0.0] if state['winner'] == 0 else [0.0, 1.0]
+# Function to get the rewards per player
+def get_rewards(state: State) -> List[float]:
+    # In a perfect information game, there should be no meaningful rewards until the game ends
     return [0.0, 0.0]
 
-# Get legal actions for the current state
-def get_legal_actions(state: State) -> list[Action]:
-    if state['winner'] is not None:
-        return []
-    legal_actions = []
-    for cell in range(1, 10):
-        if str(cell) not in state['board']:
-            legal_actions.append(str(cell))
-    return legal_actions
+# Function to get the legal actions for the current state
+def get_legal_actions(state: State) -> List[Action]:
+    # Get the current player's color
+    current_color = get_current_player(state)
+    # Get the coordinates of the current player's last move
+    last_move = next(key for key in state.keys() if state[key]['color'] == current_color and state[key]['type'] == 'occupied')
+    # Get the coordinates of the corners
+    corners = [(0, 0), (0, 2), (2, 0), (2, 2)]
+    # Generate legal moves
+    legal_moves = []
+    for corner in corners:
+        for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+            x, y = corner
+            while 0 <= x + dx < 4 and 0 <= y + dy < 4 and state.get(f"{chr(ord('A') + x + dx)},{y + dy}", {}).get('type') == 'empty':
+                x += dx
+                y += dy
+                legal_moves.append(_coord_to_str((x, y)))
+    return legal_moves
 
-# Get observations for each player
-def get_observations(state: State) -> list[PlayerObservation]:
-    if state['winner'] is not None:
-        return [{}, {}]
-    return [{cell: 1 for cell in state['board']['A']}, {cell: 1 for cell in state['board']['B']}]
-
-# Example usage
-if __name__ == "__main__":
-    initial_state = get_initial_state()
-    print("Initial State:", initial_state)
-    
-    # Simulate a few moves
-    state = apply_action(initial_state, "4")
-    print("After move 1 (Black):", state)
-    
-    state = apply_action(state, "1")
-    print("After move 2 (White):", state)
-    
-    state = apply_action(state, "7")
-    print("After move 3 (Black):", state)
-    
-    state = apply_action(state, "5")
-    print("After move 4 (White):", state)
-    
-    state = apply_action(state, "3")
-    print("After move 5 (Black):", state)
-    
-    state = apply_action(state, "8")
-    print("After move 6 (White):", state)
-    
-    state = apply_action(state, "2")
-    print("After move 7 (Black):", state)
-    
-    print("Final State:", state)
+# Function to get the observations for each player
+def get_observations(state: State) -> List[PlayerObservation]:
+    # Since it's a perfect information game, both players see the same state
+    return [{}, {}]

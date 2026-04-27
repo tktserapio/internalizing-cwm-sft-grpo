@@ -11,12 +11,10 @@ Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
-# Helper function to convert algebraic notation to coordinates
-def algebraic_to_coordinates(algebraic_notation: str) -> tuple[int, int]:
-    file, rank = algebraic_notation[0], algebraic_notation[1]
-    file_index = 'abcdefgh'.find(file)
-    rank_index = int(rank) - 1
-    return (file_index, rank_index)
+# Helper function to convert coordinates to algebraic notation
+def coord_to_algebraic(coord: str) -> str:
+    file, rank = coord
+    return f"{file}{rank}"
 
 # Required Functions
 def get_initial_state() -> State:
@@ -24,85 +22,121 @@ def get_initial_state() -> State:
     Returns the initial game state before any actions are taken.
     """
     # Initial board setup
-    board = {
-        'r': (4, 0), 'n': (4, 1), 'b': (4, 2), 'q': (4, 3), 'k': (4, 4),
-        'p': [(4, i) for i in range(5)],
-        'R': (1, 0), 'N': (1, 1), 'B': (1, 2), 'Q': (1, 3), 'K': (1, 4),
-        'p': [(1, i) for i in range(5)]
+    initial_board = {
+        "a1": "R", "b1": "N", "c1": "B", "d1": "Q", "e1": "K",
+        "a2": "P", "b2": "P", "c2": "P", "d2": "P", "e2": "P",
+        "a3": ".", "b3": ".", "c3": ".", "d3": ".", "e3": ".",
+        "a4": ".", "b4": ".", "c4": ".", "d4": ".", "e4": ".",
+        "a5": "r", "b5": "n", "c5": "b", "d5": "q", "e5": "k"
     }
-    return {'board': board}
+    return {"board": initial_board}
 
 def apply_action(state: State, action: Action) -> State:
     """
     Returns the new state after an action has been taken.
     Ensure that the previous state is not mutated; always return a new state object.
     """
-    board = state['board']
-    piece, from_coords, to_coords = action.split('_')
-    from_coords = algebraic_to_coordinates(from_coords)
-    to_coords = algebraic_to_coordinates(to_coords)
+    new_state = state.copy()
+    from_coord, to_coord = action.split("_")
+    from_file, from_rank = from_coord
+    to_file, to_rank = to_coord
     
-    # Validate action
-    if piece not in board or from_coords not in board[piece] or to_coords not in board:
-        raise ValueError("Invalid action")
+    # Convert coordinates to algebraic notation
+    from_algebraic = coord_to_algebraic(from_coord)
+    to_algebraic = coord_to_algebraic(to_coord)
     
-    # Move piece
-    piece_type = board[piece][from_coords]
-    del board[piece][from_coords]
-    board[piece][to_coords] = piece_type
+    # Get the piece at the from coordinate
+    piece = new_state["board"].pop(from_algebraic)
     
-    # Handle promotions
-    if piece == 'p' and abs(to_coords[1] - from_coords[1]) == 2:
-        board[piece][to_coords] = 'Q'
+    # Place the piece at the to coordinate
+    new_state["board"][to_algebraic] = piece
     
-    # Castling is not implemented in this version
-    # Handle en passant
-    if piece == 'p' and to_coords[1] == from_coords[1] + 1 and board[from_coords[1]][from_coords[0]] == 'p':
-        del board['p'][algebraic_to_coordinates(f'{from_coords[0]}{from_coords[1]+1}')[1]]
+    # Update the board state
+    new_state["board"] = new_state["board"]
     
-    # Handle checkmate/check
-    # This is a placeholder for now, actual logic would be complex
-    # For simplicity, we assume the game is over after each move
-    # In a real implementation, you would need to check for checkmate/check
-    # and update the state accordingly
-    
-    return {'board': board}
+    return new_state
 
 def get_current_player(state: State) -> int:
     """
     Returns current player (e.g. 0 or 1), or -4 for terminal state.
     """
     # Determine the current player based on whose turn it is
-    # In this simplified version, we assume the game is always in progress
-    return 0
+    if state["board"]["e1"] == "K":
+        return 0
+    elif state["board"]["e5"] == "K":
+        return 1
+    else:
+        return -4
 
 def get_player_name(player_id: int) -> str:
     """
     Returns the name of the player.
     """
-    return f"Player {player_id}"
+    if player_id == 0:
+        return "White"
+    elif player_id == 1:
+        return "Black"
+    else:
+        return "Unknown"
 
 def get_rewards(state: State) -> List[float]:
     """
     Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available.
     """
-    # In this simplified version, we assume the game is always in progress
-    return [0.0, 0.0]
+    # Determine the winner based on the current state
+    if state["board"]["e1"] == "K":
+        return [-1.0, 1.0]
+    elif state["board"]["e5"] == "K":
+        return [1.0, -1.0]
+    else:
+        return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """
     Returns legal actions for current state. Empty list if terminal.
     """
-    # Placeholder for legal actions logic
-    # In a real implementation, you would need to generate all possible legal moves
-    # and filter out those that are not allowed (like moving a piece off the board)
-    return []
+    # Check if the game is over
+    if state["board"]["e1"] == "K" or state["board"]["e5"] == "K":
+        return []
+    
+    # Collect all possible actions
+    legal_actions = []
+    for file in "abcde":
+        for rank in "12345":
+            from_coord = f"{file}{rank}"
+            if state["board"][from_coord] != ".":
+                # Pawn movement
+                if state["board"][from_coord] == "P":
+                    for to_rank in "12345":
+                        to_coord = f"{file}{to_rank}"
+                        if to_rank != rank and state["board"][to_coord] == ".":
+                            legal_actions.append(f"P_{from_coord}_{to_coord}")
+                        if to_rank == "1" and state["board"][to_coord] == ".":
+                            legal_actions.append(f"P_{from_coord}_{to_coord}_Q")
+                            legal_actions.append(f"P_{from_coord}_{to_coord}_R")
+                            legal_actions.append(f"P_{from_coord}_{to_coord}_B")
+                            legal_actions.append(f"P_{from_coord}_{to_coord}_N")
+                # Other pieces movement
+                else:
+                    for to_file in "abcde":
+                        to_coord = f"{to_file}{rank}"
+                        if state["board"][to_coord] == ".":
+                            legal_actions.append(f"{state['board'][from_coord]}_{from_coord}_{to_coord}")
+                        if state["board"][to_coord] != ".":
+                            captured_piece = state["board"][to_coord]
+                            legal_actions.append(f"{state['board'][from_coord]}_{from_coord}_{to_coord}_{captured_piece}")
+    
+    return legal_actions
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """
     Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state.
     """
-    # Placeholder for observation logic
-    # In a real implementation, you would need to create observations for each player
-    # that reflect their perspective on the board
-    return []
+    # Get the current board state
+    board = state["board"]
+    
+    # Create observations for each player
+    player_0_obs = {coord: piece for coord, piece in board.items() if coord[0] in "abcde"}
+    player_1_obs = {coord: piece for coord, piece in board.items() if coord[0] in "abcde"}
+    
+    return [player_0_obs, player_1_obs]

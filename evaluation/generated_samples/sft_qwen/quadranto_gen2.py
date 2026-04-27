@@ -5,163 +5,142 @@ from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
 import random
-from typing import List, Dict, Tuple
 
 # Type definitions
 Action = str
-State = Dict[str, Any]
-PlayerObservation = Dict[str, Any]
+State = dict[str, Any]
+PlayerObservation = dict[str, Any]
 
-# Helper functions
-def place_player_in_quadrant(player_id: int, quadrant: str) -> Tuple[int, int]:
-    """Randomly place a player in a quadrant."""
-    quadrants = {
-        "Q1": [(0, 0), (0, 1), (1, 0), (1, 1)],
-        "Q2": [(0, 2), (0, 3), (1, 2), (1, 3)],
-        "Q3": [(2, 0), (2, 1), (3, 0), (3, 1)],
-        "Q4": [(2, 2), (2, 3), (3, 2), (3, 3)]
-    }
-    quadrant_coords = quadrants[quadrant]
-    row, col = random.choice(quadrant_coords)
-    return player_id, (row, col)
+# Helper function to generate random coordinates within the quadrant
+def random_quadrant_coordinates():
+    row = random.randint(0, 3)
+    col = random.randint(0, 3)
+    while (row, col) not in [(0, 0), (0, 1), (1, 0), (1, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 0), (2, 1), (3, 0), (3, 1), (2, 2), (2, 3), (3, 2), (3, 3)]:
+        row = random.randint(0, 3)
+        col = random.randint(0, 3)
+    return row, col
 
+# Required Functions
 def get_initial_state() -> State:
-    """Returns the initial game state before any actions are taken."""
-    state = {
-        "player_0_loc": None,
-        "player_1_loc": None,
+    # Initial state setup
+    p0_row, p0_col = random_quadrant_coordinates()
+    p1_row, p1_col = random_quadrant_coordinates()
+    return {
+        "p0_loc": (p0_row, p0_col),
+        "p1_loc": (p1_row, p1_col),
+        "p0_quadrant": get_quadrant(p0_row, p0_col),
+        "p1_quadrant": get_quadrant(p1_row, p1_col),
         "turn_count": 0,
-        "current_player": 0,
-        "game_over": False,
-        "player_0_quadrant": None,
-        "player_1_quadrant": None
+        "p0_points": 0,
+        "p1_points": 0
     }
-    # Place players in quadrants
-    player_0_id, player_0_loc = place_player_in_quadrant(0, "Q1")
-    player_1_id, player_1_loc = place_player_in_quadrant(1, "Q4")
-    state["player_0_loc"] = player_0_loc
-    state["player_1_loc"] = player_1_loc
-    state["player_0_quadrant"] = "Q1"
-    state["player_1_quadrant"] = "Q4"
-    return state
 
-def apply_action(state: State, action: Action) -> State:
-    """Returns the new state after an action has been taken."""
-    new_state = state.copy()
-    player_id = state["current_player"]
-    opponent_id = 1 - player_id
-    
-    if action == "place_p0:<row>,<col>":
-        new_state["player_0_loc"] = eval(action.split(":")[1])
-        new_state["player_0_quadrant"] = get_quadrant(new_state["player_0_loc"])
-        new_state["current_player"] = 0
-    elif action == "place_p1:<row>,<col>":
-        new_state["player_1_loc"] = eval(action.split(":")[1])
-        new_state["player_1_quadrant"] = get_quadrant(new_state["player_1_loc"])
-        new_state["current_player"] = 1
-    else:
-        new_state["player_0_loc"], new_state["player_1_loc"] = move_player(new_state["player_0_loc"], new_state["player_1_loc"], action, player_id)
-    
-    if new_state["player_0_loc"] == new_state["player_1_loc"]:
-        new_state["game_over"] = True
-        new_state["winner"] = player_id
-        new_state["loser"] = 1 - player_id
-        new_state["turn_count"] = 20  # Game ends in a draw after 20 moves
-    elif new_state["game_over"] is False:
-        new_state["turn_count"] += 1
-        new_state["current_player"] = 1 - player_id
-    
-    return new_state
-
-def get_quadrant(loc: Tuple[int, int]) -> str:
-    """Determine the quadrant of a given location."""
-    if loc[0] < 2 and loc[1] < 2:
+def get_quadrant(row, col):
+    if row == 0 and col < 2:
         return "Q1"
-    elif loc[0] < 2 and loc[1] >= 2:
+    elif row == 0 and col >= 2:
         return "Q2"
-    elif loc[0] >= 2 and loc[1] < 2:
+    elif row == 1 and col < 2:
         return "Q3"
     else:
         return "Q4"
 
-def move_player(player_0_loc: Tuple[int, int], player_1_loc: Tuple[int, int], action: Action, player_id: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    """Move a player based on the action."""
-    if player_id == 0:
-        if action == "Up":
-            new_loc = (player_0_loc[0] - 1, player_0_loc[1])
-        elif action == "Down":
-            new_loc = (player_0_loc[0] + 1, player_0_loc[1])
-        elif action == "Left":
-            new_loc = (player_0_loc[0], player_0_loc[1] - 1)
-        elif action == "Right":
-            new_loc = (player_0_loc[0], player_0_loc[1] + 1)
-        elif action == "Stay":
-            new_loc = player_0_loc
-        else:
-            raise ValueError(f"Invalid action: {action}")
+def apply_action(state: State, action: Action) -> State:
+    new_state = state.copy()
+    p0_loc = new_state["p0_loc"]
+    p1_loc = new_state["p1_loc"]
+    
+    if action == "place_p0:<row>,<col>":
+        new_state["p0_loc"] = eval(action.split(":")[1])
+        new_state["p0_quadrant"] = get_quadrant(new_state["p0_loc"][0], new_state["p0_loc"][1])
+    elif action == "place_p1:<row>,<col>":
+        new_state["p1_loc"] = eval(action.split(":")[1])
+        new_state["p1_quadrant"] = get_quadrant(new_state["p1_loc"][0], new_state["p1_loc"][1])
     else:
         if action == "Up":
-            new_loc = (player_1_loc[0] - 1, player_1_loc[1])
+            new_state["p0_loc"] = (p0_loc[0] - 1, p0_loc[1])
+            new_state["p1_loc"] = (p1_loc[0] - 1, p1_loc[1])
         elif action == "Down":
-            new_loc = (player_1_loc[0] + 1, player_1_loc[1])
+            new_state["p0_loc"] = (p0_loc[0] + 1, p0_loc[1])
+            new_state["p1_loc"] = (p1_loc[0] + 1, p1_loc[1])
         elif action == "Left":
-            new_loc = (player_1_loc[0], player_1_loc[1] - 1)
+            new_state["p0_loc"] = (p0_loc[0], p0_loc[1] - 1)
+            new_state["p1_loc"] = (p1_loc[0], p1_loc[1] - 1)
         elif action == "Right":
-            new_loc = (player_1_loc[0], player_1_loc[1] + 1)
+            new_state["p0_loc"] = (p0_loc[0], p0_loc[1] + 1)
+            new_state["p1_loc"] = (p1_loc[0], p1_loc[1] + 1)
         elif action == "Stay":
-            new_loc = player_1_loc
-        else:
-            raise ValueError(f"Invalid action: {action}")
+            pass
     
-    return new_loc, player_1_loc
+    new_state["turn_count"] += 1
+    return new_state
 
 def get_current_player(state: State) -> int:
-    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    if state["game_over"]:
-        return -4
-    return state["current_player"]
+    if state["p0_loc"] == state["p1_loc"]:
+        return -4  # Game over
+    else:
+        return 0 if state["p0_loc"] != state["p1_loc"] else -1
 
 def get_player_name(player_id: int) -> str:
-    """Returns the name of the player."""
-    return f"Player {player_id}"
+    return "Player 0" if player_id == 0 else "Player 1"
 
-def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    if state["game_over"]:
-        return [state["loser"], state["winner"]]
-    return [0.0, 0.0]
+def get_rewards(state: State) -> list[float]:
+    if state["turn_count"] > 20:
+        return [0.0, 0.0]  # Draw
+    elif state["p0_loc"] == state["p1_loc"]:
+        return [-1.0, 1.0]  # Player 0 loses, Player 1 wins
+    else:
+        return [0.0, 0.0]  # Not a terminal state yet
 
-def get_legal_actions(state: State) -> List[Action]:
-    """Returns legal actions for current state. Empty list if terminal."""
-    if state["game_over"]:
+def get_legal_actions(state: State) -> list[Action]:
+    p0_loc = state["p0_loc"]
+    p1_loc = state["p1_loc"]
+    p0_quadrant = state["p0_quadrant"]
+    p1_quadrant = state["p1_quadrant"]
+    
+    if state["turn_count"] <= 20:
+        if p0_loc == p1_loc:
+            return []
+        else:
+            legal_actions = ["Up", "Down", "Left", "Right", "Stay"]
+            if p0_quadrant == "Q1":
+                legal_actions.remove("Up")
+            if p0_quadrant == "Q2":
+                legal_actions.remove("Left")
+            if p0_quadrant == "Q3":
+                legal_actions.remove("Down")
+            if p0_quadrant == "Q4":
+                legal_actions.remove("Right")
+            if p1_quadrant == "Q1":
+                legal_actions.remove("Down")
+            if p1_quadrant == "Q2":
+                legal_actions.remove("Right")
+            if p1_quadrant == "Q3":
+                legal_actions.remove("Up")
+            if p1_quadrant == "Q4":
+                legal_actions.remove("Left")
+            return legal_actions
+    else:
         return []
-    current_player = state["current_player"]
-    if current_player == 0:
-        return ["place_p0:<row>,<col>", "Up", "Down", "Left", "Right", "Stay"]
-    else:
-        return ["place_p1:<row>,<col>", "Up", "Down", "Left", "Right", "Stay"]
 
-def get_observations(state: State) -> List[PlayerObservation]:
-    """Returns [player_0_obs, player_1_obs]."""
-    player_0_loc = state["player_0_loc"]
-    player_1_loc = state["player_1_loc"]
-    player_0_quadrant = state["player_0_quadrant"]
-    player_1_quadrant = state["player_1_quadrant"]
-    player_0_obs = {
-        "My Loc": player_0_loc,
-        "Opponent Quadrant": player_1_quadrant
+def get_observations(state: State) -> list[PlayerObservation]:
+    p0_loc = state["p0_loc"]
+    p1_loc = state["p1_loc"]
+    p0_quadrant = state["p0_quadrant"]
+    p1_quadrant = state["p1_quadrant"]
+    
+    p0_obs = {
+        "My Loc": p0_loc,
+        "Opponent Quadrant": p1_quadrant
     }
-    player_1_obs = {
-        "My Loc": player_1_loc,
-        "Opponent Quadrant": player_0_quadrant
+    p1_obs = {
+        "My Loc": p1_loc,
+        "Opponent Quadrant": p0_quadrant
     }
-    return [player_0_obs, player_1_obs]
+    return [p0_obs, p1_obs]
 
-def resample_history(obs_action_history: List[Tuple[PlayerObservation, Action | None]], player_id: int) -> List[Action]:
-    """Stochastically sample a valid sequence of actions (including 'chance' outcomes) that explains the current observations."""
-    # This function would need to be implemented to generate a plausible sequence of actions.
-    # For simplicity, we'll just return a fixed sequence here.
-    if player_id == 0:
-        return ["place_p0:0,0", "Up", "Down", "Left", "Right", "Stay"]
-    else:
-        return ["place_p1:3,3", "Up", "Down", "Left", "Right", "Stay"]
+def resample_history(obs_action_history: list[tuple[PlayerObservation, Action | None]], player_id: int) -> list[Action]:
+    # This function would need to be implemented based on the specific rules of the game.
+    # For simplicity, we'll just return a random action from the legal actions.
+    legal_actions = get_legal_actions(resample_history.get_initial_state())
+    return [random.choice(legal_actions)]

@@ -4,119 +4,90 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Any
 
 # Type definitions
 Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
-# Helper function to generate a unique ID for each cell
-def generate_cell_id(row: int, col: int) -> str:
-    return f"{chr(65 + col)}{row + 1}"
-
-# Initial state generation
+# Helper function to create an initial state
 def get_initial_state() -> State:
-    # Size-4 board example
-    board_size = 4
-    board = {}
-    for row in range(board_size):
-        for col in range(row + 1):
-            cell_id = generate_cell_id(row, col)
-            board[cell_id] = {'color': None, 'is_corner': False}
-    
-    # Mark corners
-    board['A1'] = {'color': None, 'is_corner': True}
-    board['A2'] = {'color': None, 'is_corner': True}
-    board['C1'] = {'color': None, 'is_corner': True}
-    board['C2'] = {'color': None, 'is_corner': True}
-    
-    return board
+    """Returns the initial game state before any actions are taken."""
+    return {
+        'board': [' ' for _ in range(10)],
+        'current_player': 0,
+        'winner': None
+    }
 
-# Apply action to the state
+# Apply an action to the state
 def apply_action(state: State, action: Action) -> State:
-    new_state = state.copy()
+    """
+    Returns the new state after an action has been taken.
+    Ensure that the previous state is not mutated; always return a new state object.
+    """
+    # Convert action string to tuple
     row, col = map(int, action.split(','))
-    cell_id = generate_cell_id(row, col)
-    
-    if cell_id in new_state:
-        new_state[cell_id]['color'] = 'B' if new_state[cell_id]['color'] == 'W' else 'W'
-        new_state[cell_id]['is_corner'] = False  # Corners can only be played once
-    
-    return new_state
 
-# Get current player
+    # Check if the action is valid
+    if state['board'][row * 3 + col] != ' ':
+        raise ValueError("Invalid move: Cell already occupied")
+
+    # Update the board
+    state['board'][row * 3 + col] = 'B' if state['current_player'] == 0 else 'W'
+
+    # Switch the current player
+    state['current_player'] = 1 - state['current_player']
+
+    # Check for win condition
+    check_winner(state)
+
+    return state
+
+# Check if there's a winner
+def check_winner(state: State):
+    board = state['board']
+    # Check rows, columns, and diagonals
+    for i in range(3):
+        if board[i*3] == board[i*3+1] == board[i*3+2] != ' ':
+            state['winner'] = 1 - state['current_player']
+            return
+        if board[i] == board[i+3] == board[i+6] != ' ':
+            state['winner'] = 1 - state['current_player']
+            return
+    if board[0] == board[4] == board[8] != ' ':
+        state['winner'] = 1 - state['current_player']
+    if board[2] == board[4] == board[6] != ' ':
+        state['winner'] = 1 - state['current_player']
+
+# Get the current player
 def get_current_player(state: State) -> int:
-    black_stones = sum(1 for cell in state.values() if cell['color'] == 'B')
-    white_stones = sum(1 for cell in state.values() if cell['color'] == 'W')
-    
-    if black_stones > white_stones:
-        return 0  # Black's turn
-    elif white_stones > black_stones:
-        return 1  # White's turn
-    else:
-        return -4  # Terminal state
+    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
+    return state['current_player']
 
-# Get player name
+# Get the name of the player
 def get_player_name(player_id: int) -> str:
+    """Returns the name of the player."""
     return 'Black' if player_id == 0 else 'White'
 
-# Get rewards
+# Get rewards per player
 def get_rewards(state: State) -> List[float]:
-    black_stones = sum(1 for cell in state.values() if cell['color'] == 'B')
-    white_stones = sum(1 for cell in state.values() if cell['color'] == 'W')
-    
-    if black_stones >= 3:
-        return [1.0, 0.0]
-    elif white_stones >= 3:
-        return [0.0, 1.0]
-    else:
-        return [0.0, 0.0]
+    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
+    if state['winner'] is not None:
+        return [1.0, -1.0] if state['winner'] == 0 else [-1.0, 1.0]
+    return [0.0, 0.0]
 
-# Get legal actions
+# Get legal actions for the current state
 def get_legal_actions(state: State) -> List[Action]:
-    legal_actions = []
-    for cell_id, cell_info in state.items():
-        if cell_info['color'] is None:
-            legal_actions.append(cell_id)
-    return legal_actions
+    """Returns legal actions for current state. Empty list if terminal."""
+    if state['winner'] is not None:
+        return []
+    return [f"{i},{j}" for i in range(3) for j in range(3) if state['board'][i*3+j] == ' ']
 
-# Get observations
+# Get observations for each player
 def get_observations(state: State) -> List[PlayerObservation]:
-    observations = []
-    for cell_id, cell_info in state.items():
-        observation = {
-            'cell_id': cell_id,
-            'color': cell_info['color'],
-            'is_corner': cell_info['is_corner']
-        }
-        observations.append(observation)
-    return observations
-
-# Example usage
-if __name__ == "__main__":
-    initial_state = get_initial_state()
-    print("Initial State:", initial_state)
-    
-    # Apply actions
-    actions = ["0,0", "0,1", "1,0", "1,1", "2,0", "2,1"]
-    for action in actions:
-        initial_state = apply_action(initial_state, action)
-        print(f"After {action}:")
-        print(initial_state)
-    
-    # Get current player
-    current_player = get_current_player(initial_state)
-    print(f"Current Player: {get_player_name(current_player)}")
-    
-    # Get rewards
-    rewards = get_rewards(initial_state)
-    print(f"Rewards: {rewards}")
-    
-    # Get legal actions
-    legal_actions = get_legal_actions(initial_state)
-    print(f"Legal Actions: {legal_actions}")
-    
-    # Get observations
-    observations = get_observations(initial_state)
-    print(f"Observations: {observations}")
+    """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
+    board = state['board']
+    obs_0 = {'board': board[:9], 'legal_moves': get_legal_actions(state)}
+    obs_1 = {'board': board[:9], 'legal_moves': get_legal_actions(state)}
+    return [obs_0, obs_1]

@@ -4,120 +4,128 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import *
-import random
+from typing import Dict, List, Tuple, Union
 
-# Type definitions
 Action = str
-State = dict[str, Any]
-PlayerObservation = dict[str, Any]
+State = Dict[str, Union[int, List[int], Dict[str, str]]]
+PlayerObservation = Dict[str, Union[str, List[int], Dict[str, str]]]
 
 def get_initial_state() -> State:
     """Returns the initial game state before any actions are taken."""
-    # Initial positions for players
-    initial_positions = {
-        "p0": {"row": random.randint(0, 1), "col": random.randint(0, 1)},
-        "p1": {"row": random.randint(2, 3), "col": random.randint(2, 3)}
+    # Initial positions
+    p0_position = [0, 0]
+    p1_position = [3, 3]
+    # Observations
+    p0_obs = {"loc": "0,0", "opp_quadrant": "Bottom-Right"}
+    p1_obs = {"loc": "3,3", "opp_quadrant": "Top-Left"}
+    # State dictionary
+    state = {
+        "p0_position": p0_position,
+        "p1_position": p1_position,
+        "p0_obs": p0_obs,
+        "p1_obs": p1_obs,
+        "turn_count": 0,
+        "current_player": 0,
+        "legal_actions": ["Up", "Down", "Left", "Right", "Stay"]
     }
-    # Initial observations
-    initial_observations = {
-        "p0": {"loc": f"({initial_positions['p0']['row']},{initial_positions['p0']['col']}), {get_quadrant(initial_positions['p0'])}",
-               "opp_quadrant": get_quadrant(initial_positions['p1'])},
-        "p1": {"loc": f"({initial_positions['p1']['row']},{initial_positions['p1']['col']}), {get_quadrant(initial_positions['p1'])}",
-               "opp_quadrant": get_quadrant(initial_positions['p0'])}
-    }
-    return {
-        "state": initial_positions,
-        "observations": initial_observations
-    }
+    return state
 
 def apply_action(state: State, action: Action) -> State:
-    """
-    Returns the new state after an action has been taken.
-    Ensure that the previous state is not mutated; always return a new state object.
-    """
+    """Returns the new state after an action has been taken."""
     new_state = state.copy()
-    player_id = get_current_player(new_state)
-    player = new_state["state"][f"p{player_id}"]
-    opponent_quadrant = new_state["observations"][f"p{1-player_id}"]["opp_quadrant"]
+    # Update player positions based on action
+    if action == "Up":
+        new_state["p0_position"][1] -= 1
+        new_state["p1_position"][1] -= 1
+    elif action == "Down":
+        new_state["p0_position"][1] += 1
+        new_state["p1_position"][1] += 1
+    elif action == "Left":
+        new_state["p0_position"][0] -= 1
+        new_state["p1_position"][0] -= 1
+    elif action == "Right":
+        new_state["p0_position"][0] += 1
+        new_state["p1_position"][0] += 1
+    elif action == "Stay":
+        pass
+    else:
+        raise ValueError("Invalid action")
     
-    if action == "Stay":
-        new_state[f"state"][f"p{player_id}"] = player
-    elif action in ["Up", "Down", "Left", "Right"]:
-        row, col = player["row"], player["col"]
-        if action == "Up":
-            row -= 1
-        elif action == "Down":
-            row += 1
-        elif action == "Left":
-            col -= 1
-        elif action == "Right":
-            col += 1
-        new_state[f"state"][f"p{player_id}"] = {"row": row, "col": col}
+    # Update observations
+    p0_obs = new_state["p0_obs"].copy()
+    p1_obs = new_state["p1_obs"].copy()
+    p0_obs["loc"] = f"{new_state['p0_position'][0]},{new_state['p0_position'][1]}"
+    p1_obs["loc"] = f"{new_state['p1_position'][0]},{new_state['p1_position'][1]}"
+    p0_obs["opp_quadrant"] = get_quadrant(new_state["p0_position"])
+    p1_obs["opp_quadrant"] = get_quadrant(new_state["p1_position"])
+    new_state["p0_obs"] = p0_obs
+    new_state["p1_obs"] = p1_obs
     
-    new_state["observations"][f"p{player_id}"] = {"loc": f"({new_state[f'state'][f'p{player_id}']['row']}, {new_state[f'state'][f'p{player_id}']['col']}), {opponent_quadrant}"}
+    # Update turn count and current player
+    new_state["turn_count"] += 1
+    new_state["current_player"] = (new_state["current_player"] + 1) % 2
+    
     return new_state
+
+def get_quadrant(position: List[int]) -> str:
+    """Determine the quadrant based on the position."""
+    row, col = position
+    if row < 2 and col < 2:
+        return "Top-Left"
+    elif row < 2 and col >= 2:
+        return "Top-Right"
+    elif row >= 2 and col < 2:
+        return "Bottom-Left"
+    else:
+        return "Bottom-Right"
 
 def get_current_player(state: State) -> int:
     """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    return 0 if state["state"]["p0"]["row"] < 2 else 1
-
-def get_quadrant(position: dict) -> str:
-    """Determines the quadrant based on the position."""
-    row, col = position["row"], position["col"]
-    if row < 2 and col < 2:
-        return "Q1"
-    elif row < 2 and col >= 2:
-        return "Q2"
-    elif row >= 2 and col < 2:
-        return "Q3"
-    else:
-        return "Q4"
+    return state["current_player"]
 
 def get_player_name(player_id: int) -> str:
     """Returns the name of the player."""
-    return f"p{player_id}"
+    return "Player 0" if player_id == 0 else "Player 1"
 
-def get_rewards(state: State) -> list[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    p0_position = state["state"]["p0"]
-    p1_position = state["state"]["p1"]
+def get_rewards(state: State) -> List[float]:
+    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards."""
+    p0_position = state["p0_position"]
+    p1_position = state["p1_position"]
     if p0_position == p1_position:
         return [-1.0, 1.0]
+    elif state["turn_count"] >= 20:
+        return [0.0, 0.0]
     else:
         return [0.0, 0.0]
 
-def get_legal_actions(state: State) -> list[Action]:
+def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions for current state. Empty list if terminal."""
-    player_id = get_current_player(state)
-    player = state["state"][f"p{player_id}"]
-    row, col = player["row"], player["col"]
-    legal_actions = []
-    if row > 0:
-        legal_actions.append("Up")
-    if row < 1:
-        legal_actions.append("Down")
-    if col > 0:
-        legal_actions.append("Left")
-    if col < 1:
-        legal_actions.append("Right")
-    legal_actions.append("Stay")
-    return legal_actions
+    current_player = get_current_player(state)
+    if current_player == -4:
+        return []
+    else:
+        return state["legal_actions"]
 
-def get_observations(state: State) -> list[PlayerObservation]:
+def get_observations(state: State) -> List[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]."""
-    return [
-        state["observations"][f"p0"],
-        state["observations"][f"p1"]
-    ]
+    p0_position = state["p0_position"]
+    p1_position = state["p1_position"]
+    p0_obs = {
+        "loc": f"{p0_position[0]},{p0_position[1]}",
+        "opp_quadrant": get_quadrant(p1_position)
+    }
+    p1_obs = {
+        "loc": f"{p1_position[0]},{p1_position[1]}",
+        "opp_quadrant": get_quadrant(p0_position)
+    }
+    return [p0_obs, p1_obs]
 
-def resample_history(obs_action_history: list[tuple[PlayerObservation, Action | None]], player_id: int) -> list[Action]:
-    """
-    Stochastically sample a valid sequence of actions (including 'chance' outcomes) that explains the current observations.
-    CRITICAL: The returned list must be a complete trajectory that can be replayed starting EXACTLY from get_initial_state().
-    """
+def resample_history(obs_action_history: List[Tuple[PlayerObservation, Action | None]], player_id: int) -> List[Action]:
+    """Stochastically sample a valid sequence of actions (including 'chance' outcomes) that explains the current observations."""
     # Placeholder for resampling logic
-    # For simplicity, we'll just return a random sequence of actions
-    actions = ["Up", "Down", "Left", "Right", "Stay"]
-    sampled_actions = [random.choice(actions) for _ in range(len(obs_action_history))]
-    return sampled_actions
+    # This function should be implemented to generate a valid sequence of actions
+    # that explains the current observations. It should return a list of actions
+    # that can be replayed starting from get_initial_state().
+    # For simplicity, we'll just return a random valid action sequence.
+    legal_actions = get_legal_actions(get_initial_state())
+    return [random.choice(legal_actions) for _ in range(len(obs_action_history))]

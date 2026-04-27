@@ -26,7 +26,7 @@ def get_initial_state() -> State:
             'C2': None,
             'C3': None
         },
-        'current_player': 0  # Black starts
+        'current_player': 0  # Black starts first
     }
 
 def apply_action(state: State, action: Action) -> State:
@@ -36,23 +36,17 @@ def apply_action(state: State, action: Action) -> State:
     """
     new_state = state.copy()
     player_id = new_state['current_player']
-    cell = action.split(',')
     
-    if len(cell) != 2 or not cell[0].isdigit() or not cell[1].isdigit():
-        raise ValueError("Invalid action format")
+    # Convert action string to coordinates
+    action_parts = action.split(',')
+    row = int(action_parts[0])
+    col = int(action_parts[1])
     
-    row, col = int(cell[0]), int(cell[1])
+    # Update the board with the new stone
+    new_state['board'][f'A{col}'] = player_id
     
-    if row < 0 or row > 3 or col < 0 or col > 3:
-        raise ValueError("Cell out of bounds")
-    
-    if new_state['board'][f'A{row + 1}'] is not None:
-        raise ValueError("Cell already occupied")
-    
-    new_state['board'][f'A{row + 1}'] = player_id
-    
-    # Update current player
-    new_state['current_player'] = 1 if player_id == 0 else 0
+    # Determine the new current player
+    new_state['current_player'] = (player_id + 1) % 2
     
     return new_state
 
@@ -66,35 +60,39 @@ def get_player_name(player_id: int) -> str:
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    # In this simple implementation, we assume no running rewards
+    # In a perfect information game like Y, there's no need for rewards tracking
     return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions for current state. Empty list if terminal."""
     current_player = get_current_player(state)
     board = state['board']
-    
     legal_actions = []
-    for row in range(4):
-        for col in range(4):
-            if board[f'A{row + 1}'] is None:
-                legal_actions.append(f'{row},{col}')
     
+    for row in range(1, 4):
+        for col in range(1, 4):
+            if board[f'A{col}'] is None:
+                legal_actions.append(f'{row},{col}')
+                
     return legal_actions
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
     board = state['board']
-    observations = [
-        {
-            'board': board,
-            'current_player': get_current_player(state),
-            'legal_actions': get_legal_actions(state)
-        },
-        {
-            'board': board,
-            'current_player': get_current_player(state),
-            'legal_actions': get_legal_actions(state)
-        }
-    ]
+    observations = []
+    
+    # Player 0 (Black) observation
+    black_observation = {
+        'board': {cell: board[cell] for cell in board if cell.startswith('A')},
+        'current_player': get_current_player(state)
+    }
+    observations.append(black_observation)
+    
+    # Player 1 (White) observation
+    white_observation = {
+        'board': {cell: board[cell] for cell in board if cell.startswith('B') or cell.startswith('C')},
+        'current_player': get_current_player(state)
+    }
+    observations.append(white_observation)
+    
     return observations

@@ -4,75 +4,68 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict
 
 # Type definitions
 Action = str
-State = dict[str, Any]
-PlayerObservation = dict[str, Any]
+State = Dict[str, Any]
+PlayerObservation = Dict[str, Any]
 
-# Constants for the game
-BOARD_SIZE = 5
-CENTER_SQUARE = (2, 2)
-MAX_TURNS = 50
+# Helper function to create a new 5x5 board
+def create_board() -> List[List[int]]:
+    return [[-1 for _ in range(5)] for _ in range(5)]
 
-# Helper function to create a deep copy of the state
-def copy_state(state: State) -> State:
+# Helper function to clone the state
+def clone_state(state: State) -> State:
     return {
         "board": [row[:] for row in state["board"]],
         "current_player": state["current_player"],
-        "turn_count": state["turn_count"],
-        "stunned": [stunned[:] for stunned in state["stunned"]]
+        "stunned": [state["stunned"][0][:], state["stunned"][1][:]],
+        "turn_count": state["turn_count"]
     }
 
 # Initialize the game state
 def get_initial_state() -> State:
-    board = [[None for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
-    board[0][0] = 0
-    board[0][4] = 0
-    board[4][0] = 1
-    board[4][4] = 1
+    board = create_board()
+    board[0][0] = 0  # Player 0's unit
+    board[0][4] = 0  # Player 0's unit
+    board[4][0] = 1  # Player 1's unit
+    board[4][4] = 1  # Player 1's unit
     return {
         "board": board,
         "current_player": 0,
-        "turn_count": 0,
-        "stunned": [[False for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+        "stunned": [[], []],  # List of stunned units per player
+        "turn_count": 0
     }
 
-# Apply an action to the state
+# Apply an action to the state and return a new state
 def apply_action(state: State, action: Action) -> State:
-    new_state = copy_state(state)
+    new_state = clone_state(state)
     if action == "pass":
-        new_state["current_player"] = 1 - new_state["current_player"]
+        new_state["current_player"] = 1 - state["current_player"]
         new_state["turn_count"] += 1
         return new_state
 
     # Parse the action
     parts = action.split()
-    r1, c1 = map(int, parts[1][1:-1].split(','))
-    r2, c2 = map(int, parts[3][1:-1].split(','))
+    r1, c1 = map(int, parts[1].strip("()").split(","))
+    r2, c2 = map(int, parts[3].strip("()").split(","))
 
     # Move the unit
-    player = new_state["board"][r1][c1]
-    new_state["board"][r1][c1] = None
+    player = state["current_player"]
+    new_state["board"][r1][c1] = -1
     new_state["board"][r2][c2] = player
 
-    # Check for stuns
+    # Update stunned status
     opponent = 1 - player
+    new_state["stunned"][opponent] = []
     for dr in [-1, 0, 1]:
         for dc in [-1, 0, 1]:
             nr, nc = r2 + dr, c2 + dc
-            if 0 <= nr < BOARD_SIZE and 0 <= nc < BOARD_SIZE:
-                if new_state["board"][nr][nc] == opponent:
-                    new_state["stunned"][nr][nc] = True
+            if 0 <= nr < 5 and 0 <= nc < 5 and new_state["board"][nr][nc] == opponent:
+                new_state["stunned"][opponent].append((nr, nc))
 
-    # Clear stuns for current player
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if new_state["board"][r][c] == player:
-                new_state["stunned"][r][c] = False
-
-    # Update turn and player
+    # Switch player
     new_state["current_player"] = opponent
     new_state["turn_count"] += 1
 
@@ -80,12 +73,10 @@ def apply_action(state: State, action: Action) -> State:
 
 # Get the current player
 def get_current_player(state: State) -> int:
-    if state["turn_count"] >= MAX_TURNS:
-        return -4  # Terminal state due to draw
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if state["board"][r][c] is not None and (r, c) == CENTER_SQUARE:
-                return -4  # Terminal state due to victory
+    if state["board"][2][2] != -1:
+        return -4  # Terminal state
+    if state["turn_count"] >= 50:
+        return -4  # Terminal state
     return state["current_player"]
 
 # Get the player name
@@ -94,33 +85,30 @@ def get_player_name(player_id: int) -> str:
 
 # Get the rewards for the current state
 def get_rewards(state: State) -> List[float]:
-    if state["turn_count"] >= MAX_TURNS:
-        return [0.5, 0.5]  # Draw
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if state["board"][r][c] is not None and (r, c) == CENTER_SQUARE:
-                winner = state["board"][r][c]
-                return [1.0, 0.0] if winner == 0 else [0.0, 1.0]
+    if state["board"][2][2] == 0:
+        return [1.0, -1.0]  # Player 0 wins
+    elif state["board"][2][2] == 1:
+        return [-1.0, 1.0]  # Player 1 wins
+    elif state["turn_count"] >= 50:
+        return [0.0, 0.0]  # Draw
     return [0.0, 0.0]
 
 # Get legal actions for the current state
 def get_legal_actions(state: State) -> List[Action]:
     if get_current_player(state) == -4:
-        return []  # No legal actions in terminal state
+        return []
 
-    legal_actions = []
     player = state["current_player"]
+    legal_actions = []
+    directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if state["board"][r][c] == player and not state["stunned"][r][c]:
-                for dr in [-1, 0, 1]:
-                    for dc in [-1, 0, 1]:
-                        if dr == 0 and dc == 0:
-                            continue
-                        nr, nc = r + dr, c + dc
-                        if 0 <= nr < BOARD_SIZE and 0 <= nc < BOARD_SIZE and state["board"][nr][nc] is None:
-                            legal_actions.append(f"move ({r},{c}) to ({nr},{nc})")
+    for r in range(5):
+        for c in range(5):
+            if state["board"][r][c] == player and (r, c) not in state["stunned"][player]:
+                for dr, dc in directions:
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < 5 and 0 <= nc < 5 and state["board"][nr][nc] == -1:
+                        legal_actions.append(f"move ({r},{c}) to ({nr},{nc})")
 
     if not legal_actions:
         legal_actions.append("pass")
@@ -129,4 +117,4 @@ def get_legal_actions(state: State) -> List[Action]:
 
 # Get observations for both players
 def get_observations(state: State) -> List[PlayerObservation]:
-    return [state, state]
+    return [{"board": state["board"], "current_player": state["current_player"]}] * 2

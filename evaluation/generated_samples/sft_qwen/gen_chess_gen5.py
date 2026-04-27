@@ -4,174 +4,154 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-import copy
-
 # Type definitions
 Action = str
 State = dict[str, Any]
 PlayerObservation = dict[str, Any]
 
-# Helper function to convert board coordinates to algebraic notation
-def coord_to_algebraic(coord):
-    file, rank = coord
-    return f"{chr(ord('a') + int(file))}{int(rank) + 1}"
-
-# Initialize the game state
+# Required Functions
 def get_initial_state() -> State:
-    # Initial board setup
-    initial_board = {
-        'r': (0, 0), 'n': (0, 1), 'b': (0, 2), 'q': (0, 3), 'k': (0, 4),
-        'p': [(1, i) for i in range(5)],
-        'R': (4, 0), 'N': (4, 1), 'B': (4, 2), 'Q': (4, 3), 'K': (4, 4),
-        'p': [(3, i) for i in range(5)]
+    """
+    Returns the initial game state before any actions are taken.
+    """
+    # Initialize the board with pieces in their starting positions
+    board = {
+        'a1': 'R', 'b1': 'N', 'c1': 'B', 'd1': 'Q', 'e1': 'K',
+        'a2': 'P', 'b2': 'P', 'c2': 'P', 'd2': 'P', 'e2': 'P',
+        'a3': '.', 'b3': '.', 'c3': '.', 'd3': '.', 'e3': '.',
+        'a4': '.', 'b4': '.', 'c4': '.', 'd4': '.', 'e4': '.',
+        'a5': 'r', 'b5': 'n', 'c5': 'b', 'd5': 'q', 'e5': 'k'
     }
-    return {
-        'board': initial_board,
-        'turn': 0,
-        'castling_rights': {'w_k': True, 'w_q': True, 'b_k': False, 'b_q': False},
-        'en_passant_target': None,
-        'halfmove_clock': 0,
-        'fullmove_number': 1,
-        'check': False,
-        'checkmate': False,
-        'stalemate': False,
-        'insufficient_material': False,
-        'winner': None
-    }
+    return {'board': board}
 
-# Apply an action to the state
 def apply_action(state: State, action: Action) -> State:
+    """
+    Returns the new state after an action has been taken.
+    Ensure that the previous state is not mutated; always return a new state object.
+    """
     new_state = copy.deepcopy(state)
-    piece, from_coord, to_coord = action.split('_')
-    from_coord = coord_to_algebraic(from_coord)
-    to_coord = coord_to_algebraic(to_coord)
+    piece, from_square, to_square = action.split('_')
+    from_square = from_square.lower()
+    to_square = to_square.lower()
+
+    # Get the current player
+    current_player = get_current_player(new_state)
     
-    # Handle pawn movement
-    if piece == 'p':
-        if state['board'][piece][0] == 1:  # White pawn
-            if to_coord[1] == '5':  # Promotion
-                new_state['board'][piece].append((5, int(to_coord[1])))
-                new_state['board'][piece].remove((1, int(from_coord[1])))
-                new_state['board'][piece][0] = 5
-            else:
-                new_state['board'][piece].remove((1, int(from_coord[1])))
-                new_state['board'][piece].append((1, int(to_coord[1])))
-        else:  # Black pawn
-            if to_coord[1] == '1':  # Promotion
-                new_state['board'][piece].append((1, int(to_coord[1])))
-                new_state['board'][piece].remove((5, int(from_coord[1])))
-                new_state['board'][piece][0] = 1
-            else:
-                new_state['board'][piece].remove((5, int(from_coord[1])))
-                new_state['board'][piece].append((5, int(to_coord[1])))
+    # Check if the action is valid
+    if not new_state['board'].get(from_square):
+        raise ValueError(f"Invalid move: No piece at {from_square}")
     
-    # Handle other pieces
-    elif piece in ['r', 'n', 'b', 'q', 'k']:
-        if piece == 'p' and abs(int(from_coord[1]) - int(to_coord[1])) == 2:
-            new_state['en_passant_target'] = (int(from_coord[1]), int(to_coord[1]))
+    if not new_state['board'].get(to_square):
+        if piece == 'p':
+            # Pawn promotion
+            new_state['board'][to_square] = piece.upper()
         else:
-            new_state['board'][piece].remove((int(from_coord[1]), int(from_coord[2])))
-            new_state['board'][piece].append((int(to_coord[1]), int(to_coord[2])))
-    
-    # Update castling rights
-    if piece == 'K':
-        new_state['castling_rights']['w_k'] = False
-        new_state['castling_rights']['w_q'] = False
-        new_state['castling_rights']['b_k'] = False
-        new_state['castling_rights']['b_q'] = False
-    
-    # Update en passant target
-    if new_state['en_passant_target']:
-        new_state['board']['p'].remove(new_state['en_passant_target'])
-        new_state['en_passant_target'] = None
-    
-    # Update halfmove clock
-    if new_state['board'][piece][0] == 1:
-        new_state['halfmove_clock'] += 1
+            new_state['board'][to_square] = piece
+            new_state['board'].pop(from_square)
     else:
-        new_state['halfmove_clock'] = 0
+        raise ValueError(f"Invalid move: Target square {to_square} already occupied")
     
-    # Update fullmove number
-    new_state['fullmove_number'] += 1
+    # Update the board
+    new_state['board'][to_square] = piece
+    new_state['board'].pop(from_square)
     
-    # Check for checkmate
-    if new_state['board']['K'][0] == 1:
-        new_state['checkmate'] = True
-        new_state['winner'] = 1
-    elif new_state['board']['K'][0] == 5:
-        new_state['checkmate'] = True
-        new_state['winner'] = 0
+    # Update the current player
+    new_state['current_player'] = (current_player + 1) % 2
     
     return new_state
 
-# Get current player
 def get_current_player(state: State) -> int:
-    return state['turn']
+    """
+    Returns current player (e.g. 0 or 1), or -4 for terminal state.
+    """
+    return state.get('current_player', -4)
 
-# Get player name
 def get_player_name(player_id: int) -> str:
-    return 'Player 0' if player_id == 0 else 'Player 1'
+    """
+    Returns the name of the player.
+    """
+    return ['Player 0', 'Player 1'][player_id]
 
-# Get rewards
 def get_rewards(state: State) -> list[float]:
-    if state['winner'] is not None:
-        return [-1.0, 1.0] if state['winner'] == 0 else [1.0, -1.0]
-    return [0.0, 0.0]
+    """
+    Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available.
+    """
+    # Determine the winner based on the game rules
+    winner = determine_winner(state)
+    if winner == 0:
+        return [1.0, -1.0]
+    elif winner == 1:
+        return [-1.0, 1.0]
+    else:
+        return [0.0, 0.0]
 
-# Get legal actions
+def determine_winner(state: State) -> int:
+    """
+    Determines the winner based on the game rules.
+    """
+    # Check for stalemate
+    if not get_legal_actions(state):
+        return 2  # Stalemate
+
+    # Check for 50-move rule
+    if is_five_zero_move_rule(state):
+        return 2  # Stalemate
+
+    # Check for insufficient material
+    if is_insufficient_material(state):
+        return 2  # Stalemate
+
+    # Check for checkmate
+    if is_checkmate(state):
+        return get_current_player(state)
+
+    return -1  # Game continues
+
+def is_five_zero_move_rule(state: State) -> bool:
+    """
+    Checks if the 50-move rule applies.
+    """
+    # Count the number of moves
+    moves_count = 0
+    for _ in range(50):
+        if get_legal_actions(state):
+            moves_count += 1
+        state = apply_action(state, get_legal_actions(state)[0])
+    return moves_count >= 50
+
+def is_insufficient_material(state: State) -> bool:
+    """
+    Checks if the game is a draw due to insufficient material.
+    """
+    # Check if both sides have only pawns and/or knights
+    white_pieces = set(piece for piece in state['board'].values() if piece.islower())
+    black_pieces = set(piece for piece in state['board'].values() if piece.isupper())
+    return len(white_pieces - {'p', 'n'}) == 0 and len(black_pieces - {'p', 'n'}) == 0
+
+def is_checkmate(state: State) -> bool:
+    """
+    Checks if the game is in checkmate.
+    """
+    # Check if the current player is in check and has no legal moves
+    current_player = get_current_player(state)
+    for square, piece in state['board'].items():
+        if piece.islower() and piece != 'p' and piece != 'n':
+            # Check if the piece can move out of check
+            for move in get_legal_actions(state):
+                if move.startswith(square):
+                    return False
+    return True
+
 def get_legal_actions(state: State) -> list[Action]:
-    legal_actions = []
-    for piece, coords in state['board'].items():
-        if piece == 'p':
-            if state['board'][piece][0] == 1:
-                # White pawn
-                for i in range(5):
-                    if i != int(state['board'][piece][1]):
-                        legal_actions.append(f'p_{coord_to_algebraic((1, i))}_{coord_to_algebraic((1, i + 1))}')
-                        if i == 1:
-                            legal_actions.append(f'p_{coord_to_algebraic((1, i))}_{coord_to_algebraic((1, i + 2))}')
-            else:
-                # Black pawn
-                for i in range(5):
-                    if i != int(state['board'][piece][1]):
-                        legal_actions.append(f'p_{coord_to_algebraic((5, i))}_{coord_to_algebraic((5, i + 1))}')
-                        if i == 1:
-                            legal_actions.append(f'p_{coord_to_algebraic((5, i))}_{coord_to_algebraic((5, i + 2))}')
-        elif piece in ['r', 'n', 'b', 'q', 'k']:
-            for from_coord in coords:
-                if piece == 'p' and state['board'][piece][0] == 1:
-                    for to_coord in [(from_coord[0], from_coord[1] + 1), (from_coord[0], from_coord[1] - 1)]:
-                        if to_coord[1] in ['1', '5']:
-                            legal_actions.append(f'{piece}_{coord_to_algebraic(from_coord)}_{coord_to_algebraic(to_coord)}')
-                else:
-                    for to_coord in [(from_coord[0] + 1, from_coord[1]), (from_coord[0] - 1, from_coord[1]),
-                                     (from_coord[0] + 1, from_coord[1] + 1), (from_coord[0] - 1, from_coord[1] - 1)]:
-                        if 0 <= to_coord[0] < 5 and 0 <= to_coord[1] < 5:
-                            legal_actions.append(f'{piece}_{coord_to_algebraic(from_coord)}_{coord_to_algebraic(to_coord)}')
-    return legal_actions
+    """
+    Returns legal actions for current state. Empty list if terminal.
+    """
+    # Implement the logic to generate legal actions
+    pass
 
-# Get observations
 def get_observations(state: State) -> list[PlayerObservation]:
-    observations = []
-    for player_id in [0, 1]:
-        obs = {}
-        obs['board'] = {key: [] for key in state['board']}
-        obs['board']['K'] = [state['board']['K'][0]]
-        obs['board']['p'] = [coord for coord in state['board']['p'] if coord[0] == player_id]
-        obs['board']['r'] = [coord for coord in state['board']['r'] if coord[0] == player_id]
-        obs['board']['n'] = [coord for coord in state['board']['n'] if coord[0] == player_id]
-        obs['board']['b'] = [coord for coord in state['board']['b'] if coord[0] == player_id]
-        obs['board']['q'] = [coord for coord in state['board']['q'] if coord[0] == player_id]
-        obs['board']['k'] = [coord for coord in state['board']['k'] if coord[0] == player_id]
-        obs['turn'] = state['turn']
-        obs['castling_rights'] = state['castling_rights']
-        obs['en_passant_target'] = state['en_passant_target']
-        obs['halfmove_clock'] = state['halfmove_clock']
-        obs['fullmove_number'] = state['fullmove_number']
-        obs['check'] = state['check']
-        obs['checkmate'] = state['checkmate']
-        obs['stalemate'] = state['stalemate']
-        obs['insufficient_material'] = state['insufficient_material']
-        obs['winner'] = state['winner']
-        observations.append(obs)
-    return observations
+    """
+    Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state.
+    """
+    # Implement the logic to generate observations
+    pass

@@ -4,121 +4,97 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import Dict, List, Any
+from typing import Dict, List, Tuple
 
 # Type definitions
 Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
+# Helper function to parse coordinates
+def parse_coordinates(coord_str: str) -> Tuple[int, int]:
+    row, col = map(int, coord_str.strip('()').split(','))
+    return row, col
+
+# Initial state setup
 def get_initial_state() -> State:
-    """Returns the initial game state before any actions are taken."""
+    # Player 0 (Blue) starts with two units at (0, 0) and (0, 4)
+    blue_units = [(0, 0), (0, 4)]
+    # Player 1 (Red) starts with two units at (4, 0) and (4, 4)
+    red_units = [(4, 0), (4, 4)]
     return {
-        'board': {
-            (0, 0): {'player': 0},
-            (0, 4): {'player': 0},
-            (1, 0): {'player': None},
-            (1, 4): {'player': None},
-            (2, 0): {'player': None},
-            (2, 1): {'player': None},
-            (2, 2): {'player': None},
-            (2, 3): {'player': None},
-            (2, 4): {'player': None},
-            (3, 0): {'player': None},
-            (3, 4): {'player': None},
-            (4, 0): {'player': 1},
-            (4, 1): {'player': None},
-            (4, 2): {'player': None},
-            (4, 3): {'player': None},
-            (4, 4): {'player': 1}
-        },
-        'turn': 0,
-        'stun': {}
+        'blue_units': blue_units,
+        'red_units': red_units,
+        'current_player': 0,
+        'turn_count': 0,
+        'center_square_occupied': False
     }
 
+# Apply action to the state
 def apply_action(state: State, action: Action) -> State:
-    """
-    Returns the new state after an action has been taken.
-    Ensure that the previous state is not mutated; always return a new state object.
-    """
     new_state = state.copy()
-    player_id = get_current_player(new_state)
     if action == 'pass':
-        new_state['turn'] += 1
+        new_state['current_player'] = (new_state['current_player'] + 1) % 2
         return new_state
-    
-    # Parse the action
-    source, target = action.split(' to ')
-    sr, sc = map(int, source.split(','))
-    tr, tc = map(int, target.split(','))
-    
-    # Check if the action is valid
-    if (sr, sc) not in new_state['board']:
-        raise ValueError(f"Invalid source position {source}")
-    if (tr, tc) not in new_state['board']:
-        raise ValueError(f"Invalid target position {target}")
-    if new_state['board'][sr, sc]['player'] != player_id:
-        raise ValueError("Cannot move another player's unit")
-    
-    # Apply the move
-    new_state['board'][tr, tc]['player'] = player_id
-    new_state['board'][sr, sc]['player'] = None
-    
-    # Handle stun
-    if (sr, sc) in new_state['stun']:
-        new_state['stun'][sr, sc]['status'] = False
-        del new_state['stun'][sr, sc]
-    
-    return new_state
-
-def get_current_player(state: State) -> int:
-    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    if state['turn'] % 2 == 0:
-        return 0
     else:
-        return 1
+        old_row, old_col = parse_coordinates(action.split()[1])
+        new_row, new_col = parse_coordinates(action.split()[3])
+        new_state['blue_units'] = [
+            (old_row, old_col) if (old_row, old_col) in new_state['blue_units'] else (new_row, new_col)
+        ]
+        new_state['red_units'] = [
+            (old_row, old_col) if (old_row, old_col) in new_state['red_units'] else (new_row, new_col)
+        ]
+        new_state['turn_count'] += 1
+        return new_state
 
+# Get current player
+def get_current_player(state: State) -> int:
+    return state['current_player']
+
+# Get player name
 def get_player_name(player_id: int) -> str:
-    """Returns the name of the player."""
     return 'Blue' if player_id == 0 else 'Red'
 
+# Get rewards
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    if state['board'][2, 2]['player'] == 0:
-        return [1.0, 0.0]
-    elif state['board'][2, 2]['player'] == 1:
-        return [0.0, 1.0]
-    else:
-        return [0.0, 0.0]
+    if state['center_square_occupied']:
+        return [1.0, 0.0] if state['current_player'] == 0 else [0.0, 1.0]
+    return [0.0, 0.0]
 
+# Get legal actions
 def get_legal_actions(state: State) -> List[Action]:
-    """Returns legal actions for current state. Empty list if terminal."""
-    player_id = get_current_player(state)
     legal_actions = []
-    
-    for pos, player in state['board'].items():
-        if player['player'] == player_id:
-            for dr, dc in [(0, 1), (1, 0), (1, 1), (-1, 1), (0, -1), (-1, 0), (-1, -1), (1, -1)]:
-                new_pos = (pos[0] + dr, pos[1] + dc)
-                if new_pos in state['board'] and state['board'][new_pos]['player'] is None:
-                    legal_actions.append(f'move {pos} to {new_pos}')
-    
-    # Add pass action if no legal moves
+    current_player = state['current_player']
+    for unit in state[f'{current_player}_units']:
+        row, col = unit
+        # Check horizontal, vertical, and diagonal moves
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
+            new_row, new_col = row + dr, col + dc
+            if 0 <= new_row < 5 and 0 <= new_col < 5 and (new_row, new_col) not in state[f'{current_player}_units']:
+                legal_actions.append(f'move ({row},{col}) to ({new_row},{new_col})')
     if not legal_actions:
         legal_actions.append('pass')
-    
     return legal_actions
 
+# Get observations
 def get_observations(state: State) -> List[PlayerObservation]:
-    """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    player_0_obs = {
-        'board': state['board'],
-        'turn': state['turn'],
-        'stun': state['stun']
-    }
-    player_1_obs = {
-        'board': state['board'],
-        'turn': state['turn'],
-        'stun': state['stun']
-    }
-    return [player_0_obs, player_1_obs]
+    blue_units = state['blue_units']
+    red_units = state['red_units']
+    center_square_occupied = (2, 2) in blue_units or (2, 2) in red_units
+    return [
+        {
+            'units': blue_units,
+            'center_square_occupied': center_square_occupied
+        },
+        {
+            'units': red_units,
+            'center_square_occupied': center_square_occupied
+        }
+    ]
+
+# Example usage
+if __name__ == "__main__":
+    initial_state = get_initial_state()
+    print("Initial State:", initial_state)
+    print("Legal Actions:", get_legal_actions(initial_state))

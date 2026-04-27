@@ -11,39 +11,25 @@ Action = str
 State = dict[str, Any]
 PlayerObservation = dict[str, Any]
 
-# Helper function to create a new state based on the given action
-def apply_action_helper(state: State, action: Action) -> State:
-    """
-    Apply an action to the current state and return the new state.
-    This function is used internally to avoid mutating the original state.
-    """
-    new_state = copy.deepcopy(state)
-    piece, from_square, to_square = action.split('_')
-    # Update the piece location
-    new_state[from_square] = '.'
-    new_state[to_square] = piece
-    # Handle promotions
-    if piece == 'P' and to_square != 'e5':
-        new_state[to_square] = piece + '_Q'  # Promotion to Queen
-    elif piece == 'P' and to_square != 'e4':
-        new_state[to_square] = piece + '_R'  # Promotion to Rook
-    elif piece == 'P' and to_square != 'e3':
-        new_state[to_square] = piece + '_B'  # Promotion to Bishop
-    elif piece == 'P' and to_square != 'e2':
-        new_state[to_square] = piece + '_N'  # Promotion to Knight
-    return new_state
+# Helper function to convert coordinates to a unique key
+def coord_to_key(rank: int, file: str) -> str:
+    return f"{file}{rank}"
 
 # Required Functions
 def get_initial_state() -> State:
     """
     Returns the initial game state before any actions are taken.
     """
+    # Initial board setup
     initial_board = {
-        'a1': 'R', 'b1': 'N', 'c1': 'B', 'd1': 'Q', 'e1': 'K',
-        'a2': 'P', 'b2': 'P', 'c2': 'P', 'd2': 'P', 'e2': 'P',
-        'a3': '.', 'b3': '.', 'c3': '.', 'd3': '.', 'e3': '.',
-        'a4': '.', 'b4': '.', 'c4': '.', 'd4': '.', 'e4': '.',
-        'a5': 'r', 'b5': 'n', 'c5': 'b', 'd5': 'q', 'e5': 'k'
+        coord_to_key(1, 'a'): 'R', coord_to_key(1, 'b'): 'N', coord_to_key(1, 'c'): 'B', 
+        coord_to_key(1, 'd'): 'Q', coord_to_key(1, 'e'): 'K',
+        coord_to_key(2, 'a'): 'P', coord_to_key(2, 'b'): 'P', coord_to_key(2, 'c'): 'P', 
+        coord_to_key(2, 'd'): 'P', coord_to_key(2, 'e'): 'P',
+        coord_to_key(4, 'a'): 'r', coord_to_key(4, 'b'): 'n', coord_to_key(4, 'c'): 'b', 
+        coord_to_key(4, 'd'): 'q', coord_to_key(4, 'e'): 'k',
+        coord_to_key(5, 'a'): '.', coord_to_key(5, 'b'): '.', coord_to_key(5, 'c'): '.', 
+        coord_to_key(5, 'd'): '.', coord_to_key(5, 'e'): '.'
     }
     return initial_board
 
@@ -52,198 +38,182 @@ def apply_action(state: State, action: Action) -> State:
     Returns the new state after an action has been taken.
     Ensure that the previous state is not mutated; always return a new state object.
     """
-    return apply_action_helper(state, action)
+    new_state = copy.deepcopy(state)
+    
+    # Parse the action
+    piece, from_rank, from_file, to_rank, to_file, promo = parse_action(action)
+    
+    # Update the board
+    from_key = coord_to_key(int(from_rank), from_file)
+    to_key = coord_to_key(int(to_rank), to_file)
+    new_state[to_key] = new_state[from_key]
+    del new_state[from_key]
+    
+    # Handle promotion
+    if promo:
+        new_state[to_key] = promo
+    
+    # Determine the current player
+    current_player = get_current_player(new_state)
+    
+    return new_state
+
+def parse_action(action: Action) -> tuple[str, int, str, int, str, str]:
+    """
+    Parses the action string into its components.
+    """
+    pieces = {'P': 'p', 'N': 'n', 'B': 'b', 'R': 'r', 'Q': 'q', 'K': 'k'}
+    promo_pieces = {'Q': 'q', 'R': 'r', 'B': 'b', 'N': 'n'}
+    
+    piece, from_rank, from_file, to_rank, to_file, promo = action.split('_')
+    from_rank, from_file = from_rank, from_file
+    to_rank, to_file = to_rank, to_file
+    if promo:
+        promo = promo_pieces[promo]
+    
+    return pieces[piece], from_rank, from_file, to_rank, to_file, promo
 
 def get_current_player(state: State) -> int:
     """
     Returns current player (e.g. 0 or 1), or -4 for terminal state.
     """
     # Determine the current player based on whose turn it is
-    if state['a1'] == 'r' and state['b1'] == 'n' and state['c1'] == 'b' and state['d1'] == 'q' and state['e1'] == 'k':
-        return 1  # Black's turn
-    elif state['a5'] == 'r' and state['b5'] == 'n' and state['c5'] == 'b' and state['d5'] == 'q' and state['e5'] == 'k':
-        return 0  # White's turn
-    else:
-        return -4  # Terminal state
+    for rank in state.values():
+        if rank == 'K':
+            return 0 if rank == 'K' else 1
+    return -4
 
 def get_player_name(player_id: int) -> str:
     """
     Returns the name of the player.
     """
-    if player_id == 0:
-        return "White"
-    elif player_id == 1:
-        return "Black"
-    else:
-        return "Unknown"
+    return 'Player 0' if player_id == 0 else 'Player 1'
 
 def get_rewards(state: State) -> list[float]:
     """
-    Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards.
+    Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available.
     """
-    # Determine the winner based on the current state
-    if state['a1'] == 'r' and state['b1'] == 'n' and state['c1'] == 'b' and state['d1'] == 'q' and state['e1'] == 'k':
-        return [-1.0, 1.0]  # Black loses, White wins
-    elif state['a5'] == 'r' and state['b5'] == 'n' and state['c5'] == 'b' and state['d5'] == 'q' and state['e5'] == 'k':
-        return [1.0, -1.0]  # White loses, Black wins
+    # Determine the winner
+    white_king = 'K' in state.values()
+    black_king = 'k' in state.values()
+    
+    if white_king and not black_king:
+        return [1.0, -1.0]
+    elif black_king and not white_king:
+        return [-1.0, 1.0]
     else:
-        return [0.0, 0.0]  # No winner yet
+        return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> list[Action]:
     """
     Returns legal actions for current state. Empty list if terminal.
     """
     legal_actions = []
-    for square, piece in state.items():
-        if piece != '.':
-            # Pawn movement
+    
+    # Get the current player
+    current_player = get_current_player(state)
+    
+    # Iterate over each square in the state
+    for rank in state.keys():
+        for file in state[rank]:
+            piece = state[rank]
+            
+            # Get possible moves for the piece
             if piece == 'P':
-                if state[square[0] + '3'] == '.' and state[square[0] + '4'] == '.':
-                    legal_actions.append(f"P_{square}_{square}_Q")  # Promotion to Queen
-                    legal_actions.append(f"P_{square}_{square}_R")  # Promotion to Rook
-                    legal_actions.append(f"P_{square}_{square}_B")  # Promotion to Bishop
-                    legal_actions.append(f"P_{square}_{square}_N")  # Promotion to Knight
-                elif state[square[0] + '3'] == '.':
-                    legal_actions.append(f"P_{square}_{square + '2'}")
-                elif state[square[0] + '4'] == '.':
-                    legal_actions.append(f"P_{square}_{square + '3'}")
+                # Pawn movement
+                if current_player == 0:
+                    if state[f"{file}{int(rank)+1}"] == '.':
+                        legal_actions.append(f"P_{rank}_{int(rank)+1}")
+                    if state[f"{file}{int(rank)+2}"] == '.' and state[f"{file}{int(rank)+1}"] == '.':
+                        legal_actions.append(f"P_{rank}_{int(rank)+2}")
+                    if state[f"{file}{int(rank)+1}"] != '.' and state[f"{file}{int(rank)+1}"].islower():
+                        legal_actions.append(f"P_{rank}_{int(rank)+1}_Q")
                 else:
-                    if state[square[0] + '3'] == '.':
-                        legal_actions.append(f"P_{square}_{square + '2'}")
-                    elif state[square[0] + '4'] == '.':
-                        legal_actions.append(f"P_{square}_{square + '3'}")
-            # Knight movement
+                    if state[f"{file}{int(rank)-1}"] == '.':
+                        legal_actions.append(f"P_{rank}_{int(rank)-1}")
+                    if state[f"{file}{int(rank)-2}"] == '.' and state[f"{file}{int(rank)-1}"] == '.':
+                        legal_actions.append(f"P_{rank}_{int(rank)-2}")
+                    if state[f"{file}{int(rank)-1}"] != '.' and state[f"{file}{int(rank)-1}"].isupper():
+                        legal_actions.append(f"P_{rank}_{int(rank)-1}_Q")
+                
+                # Capture moves
+                if current_player == 0:
+                    if state[f"{file}{int(rank)+1}"].islower():
+                        legal_actions.append(f"P_{rank}_{int(rank)+1}_Q")
+                else:
+                    if state[f"{file}{int(rank)-1}"].isupper():
+                        legal_actions.append(f"P_{rank}_{int(rank)-1}_Q")
+                
             elif piece == 'N':
-                legal_actions.append(f"N_{square}_a{chr(ord(square[0]) + 1) + square[1]}")
-                legal_actions.append(f"N_{square}_a{chr(ord(square[0]) - 1) + square[1]}")
-                legal_actions.append(f"N_{square}_b{chr(ord(square[0]) + 2) + square[1]}")
-                legal_actions.append(f"N_{square}_b{chr(ord(square[0]) - 2) + square[1]}")
-                legal_actions.append(f"N_{square}_c{chr(ord(square[0]) + 1) + square[1]}")
-                legal_actions.append(f"N_{square}_c{chr(ord(square[0]) - 1) + square[1]}")
-                legal_actions.append(f"N_{square}_d{chr(ord(square[0]) + 1) + square[1]}")
-                legal_actions.append(f"N_{square}_d{chr(ord(square[0]) - 1) + square[1]}")
-            # Bishop movement
+                # Knight movement
+                for move in [(2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]:
+                    new_rank = int(rank) + move[0]
+                    new_file = chr(ord(file) + move[1])
+                    if 1 <= new_rank <= 5 and 'a' <= new_file <= 'e':
+                        if state[f"{new_file}{new_rank}"] == '.':
+                            legal_actions.append(f"N_{rank}_{file}_{new_rank}_{new_file}")
+                        elif state[f"{new_file}{new_rank}"].isupper() != current_player:
+                            legal_actions.append(f"N_{rank}_{file}_{new_rank}_{new_file}_Q")
+            
             elif piece == 'B':
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]) + i)}{square[1]}"] == '.':
-                        legal_actions.append(f"B_{square}_{chr(ord(square[0]) + i)}{square[1]}")
-                    else:
+                # Bishop movement
+                for move in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                    new_rank = int(rank) + move[0]
+                    new_file = chr(ord(file) + move[1])
+                    while 1 <= new_rank <= 5 and 'a' <= new_file <= 'e':
+                        if state[f"{new_file}{new_rank}"] == '.':
+                            legal_actions.append(f"B_{rank}_{file}_{new_rank}_{new_file}")
+                            break
+                        elif state[f"{new_file}{new_rank}"].isupper() != current_player:
+                            legal_actions.append(f"B_{rank}_{file}_{new_rank}_{new_file}_Q")
+                            break
                         break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]) - i)}{square[1]}"] == '.':
-                        legal_actions.append(f"B_{square}_{chr(ord(square[0]) - i)}{square[1]}")
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1] + i}"] == '.':
-                        legal_actions.append(f"B_{square}_{chr(ord(square[0]))}{square[1] + i}")
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1] - i}"] == '.':
-                        legal_actions.append(f"B_{square}_{chr(ord(square[0]))}{square[1] - i}")
-                    else:
-                        break
-            # Rook movement
+                
             elif piece == 'R':
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}"] == '.':
-                        legal_actions.append(f"R_{square}_{chr(ord(square[0]))}{square[1]}")
-                    else:
+                # Rook movement
+                for move in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
+                    new_rank = int(rank) + move[0]
+                    new_file = chr(ord(file) + move[1])
+                    while 1 <= new_rank <= 5 and 'a' <= new_file <= 'e':
+                        if state[f"{new_file}{new_rank}"] == '.':
+                            legal_actions.append(f"R_{rank}_{file}_{new_rank}_{new_file}")
+                            break
+                        elif state[f"{new_file}{new_rank}"].isupper() != current_player:
+                            legal_actions.append(f"R_{rank}_{file}_{new_rank}_{new_file}_Q")
+                            break
                         break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}"] == '.':
-                        legal_actions.append(f"R_{square}_{chr(ord(square[0]))}{square[1]}")
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"R_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"R_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-            # Queen movement
+            
             elif piece == 'Q':
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}"] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}")
-                    else:
+                # Queen movement
+                for move in [(1, 1), (1, -1), (-1, 1), (-1, -1), (1, 0), (0, 1), (-1, 0), (0, -1)]:
+                    new_rank = int(rank) + move[0]
+                    new_file = chr(ord(file) + move[1])
+                    while 1 <= new_rank <= 5 and 'a' <= new_file <= 'e':
+                        if state[f"{new_file}{new_rank}"] == '.':
+                            legal_actions.append(f"Q_{rank}_{file}_{new_rank}_{new_file}")
+                            break
+                        elif state[f"{new_file}{new_rank}"].isupper() != current_player:
+                            legal_actions.append(f"Q_{rank}_{file}_{new_rank}_{new_file}_Q")
+                            break
                         break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-                for i in range(1, 5):
-                    if state[f"{chr(ord(square[0]))}{square[1]}" + i] == '.':
-                        legal_actions.append(f"Q_{square}_{chr(ord(square[0]))}{square[1]}" + i)
-                    else:
-                        break
-            # King movement
+            
             elif piece == 'K':
-                if state['a1'] == '.':
-                    legal_actions.append(f"K_{square}_a{chr(ord(square[0]) + 1) + square[1]}")
-                if state['b1'] == '.':
-                    legal_actions.append(f"K_{square}_a{chr(ord(square[0])) + square[1]}")
-                if state['c1'] == '.':
-                    legal_actions.append(f"K_{square}_a{chr(ord(square[0]) - 1) + square[1]}")
-                if state['d1'] == '.':
-                    legal_actions.append(f"K_{square}_b{chr(ord(square[0])) + square[1]}")
-                if state['e1'] == '.':
-                    legal_actions.append(f"K_{square}_b{chr(ord(square[0])) - 1 + square[1]}")
-                if state['a5'] == '.':
-                    legal_actions.append(f"K_{square}_a{chr(ord(square[0]) + 1) + square[1]}")
-                if state['b5'] == '.':
-                    legal_actions.append(f"K_{square}_a{chr(ord(square[0])) + square[1]}")
-                if state['c5'] == '.':
-                    legal_actions.append(f"K_{square}_a{chr(ord(square[0]) - 1) + square[1]}")
-                if state['d5'] == '.':
-                    legal_actions.append(f"K_{square}_b{chr(ord(square[0])) + square[1]}")
-                if state['e5'] == '.':
-                    legal_actions.append(f"K_{square}_b{chr(ord(square[0])) - 1 + square[1]}")
+                # King movement
+                for move in [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                    new_rank = int(rank) + move[0]
+                    new_file = chr(ord(file) + move[1])
+                    if 1 <= new_rank <= 5 and 'a' <= new_file <= 'e':
+                        if state[f"{new_file}{new_rank}"] == '.':
+                            legal_actions.append(f"K_{rank}_{file}_{new_rank}_{new_file}")
+                        elif state[f"{new_file}{new_rank}"].isupper() != current_player:
+                            legal_actions.append(f"K_{rank}_{file}_{new_rank}_{new_file}_Q")
+    
     return legal_actions
 
 def get_observations(state: State) -> list[PlayerObservation]:
     """
     Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state.
     """
-    player_0_obs = {}
-    player_1_obs = {}
-    for square, piece in state.items():
-        if piece != '.':
-            file = square[0]
-            rank = square[1]
-            if file == 'a':
-                player_0_obs[(rank, file)] = piece
-            elif file == 'e':
-                player_1_obs[(rank, file)] = piece
+    player_0_obs = {coord: piece for coord, piece in state.items() if piece.islower()}
+    player_1_obs = {coord: piece for coord, piece in state.items() if piece.isupper()}
     return [player_0_obs, player_1_obs]

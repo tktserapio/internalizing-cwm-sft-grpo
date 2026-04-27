@@ -4,15 +4,39 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-import copy
+from typing import Dict, List, Tuple
 
 # Type definitions
 Action = str
-State = dict[str, Any]
-PlayerObservation = dict[str, Any]
+State = Dict[str, Any]
+PlayerObservation = Dict[str, Any]
 
+# Helper function to check if a player has won
+def check_win(board: List[List[str]], player: str, win_length: int) -> bool:
+    # Check horizontal lines
+    for row in board:
+        for i in range(len(row) - win_length + 1):
+            if all(cell == player for cell in row[i:i+win_length]):
+                return True
+    
+    # Check vertical lines
+    for col in range(len(board[0])):
+        for i in range(len(board) - win_length + 1):
+            if all(board[i+row][col] == player for row in range(win_length)):
+                return True
+    
+    # Check diagonal lines
+    for offset in range(-win_length + 1, win_length):
+        for i in range(len(board) - win_length + 1):
+            if all(board[i+offset][i+j] == player for j in range(win_length)):
+                return True
+            if all(board[i+offset][i+j] == player for j in range(win_length-1, -1, -1)):
+                return True
+    
+    return False
+
+# Function to get the initial state
 def get_initial_state() -> State:
-    """Returns the initial game state before any actions are taken."""
     return {
         "board": [["." for _ in range(6)] for _ in range(6)],
         "current_player": 0,
@@ -20,91 +44,58 @@ def get_initial_state() -> State:
         "is_draw": False
     }
 
+# Function to apply an action to the state
 def apply_action(state: State, action: Action) -> State:
-    """
-    Returns the new state after an action has been taken.
-    Ensure that the previous state is not mutated; always return a new state object.
-    """
-    # Parse the action
     row, col = map(int, action.split(","))
-    
-    # Check if the action is valid
     if state["board"][row][col] != ".":
-        raise ValueError("Cell is already occupied.")
+        raise ValueError("Cell already occupied")
     
-    # Update the board
     state["board"][row][col] = "x" if state["current_player"] == 0 else "o"
+    state["current_player"] = (state["current_player"] + 1) % 2
+    state["winner"] = None
+    state["is_draw"] = all(all(cell != "." for cell in row) for row in state["board"])
     
-    # Switch the current player
-    state["current_player"] = 1 - state["current_player"]
-    
-    # Check for win condition
-    check_winner(state)
-    
-    # Check for draw condition
-    if all(all(cell != "." for cell in row) for row in state["board"]):
-        state["is_draw"] = True
+    if state["is_draw"]:
+        state["winner"] = "draw"
+    elif check_win(state["board"], "x", 4):
+        state["winner"] = "x"
+    elif check_win(state["board"], "o", 4):
+        state["winner"] = "o"
     
     return state
 
-def check_winner(state: State) -> None:
-    """
-    Checks if there is a winner based on the current state.
-    If there is a winner, sets the 'winner' field in the state.
-    """
-    # Check rows and columns
-    for i in range(6):
-        if all(state["board"][i][j] == "x" for j in range(6)) or all(state["board"][i][j] == "o" for j in range(6)):
-            state["winner"] = 0 if state["board"][i][0] == "x" else 1
-            return
-        if all(state["board"][j][i] == "x" for j in range(6)) or all(state["board"][j][i] == "o" for j in range(6)):
-            state["winner"] = 0 if state["board"][0][i] == "x" else 1
-            return
-    
-    # Check diagonals
-    if all(state["board"][i][i] == "x" for i in range(6)) or all(state["board"][i][i] == "o" for i in range(6)):
-        state["winner"] = 0 if state["board"][0][0] == "x" else 1
-        return
-    if all(state["board"][i][5-i] == "x" for i in range(6)) or all(state["board"][i][5-i] == "o" for i in range(6)):
-        state["winner"] = 0 if state["board"][0][5] == "x" else 1
-        return
-
+# Function to get the current player
 def get_current_player(state: State) -> int:
-    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
     return state["current_player"]
 
+# Function to get the name of the player
 def get_player_name(player_id: int) -> str:
-    """Returns the name of the player."""
     return "Player 1" if player_id == 0 else "Player 2"
 
-def get_rewards(state: State) -> list[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    if state["winner"] is not None:
-        return [1.0, 0.0] if state["winner"] == 0 else [0.0, 1.0]
-    elif state["is_draw"]:
-        return [0.5, 0.5]
+# Function to get the rewards per player
+def get_rewards(state: State) -> List[float]:
+    if state["winner"] == "draw":
+        return [0.0, 0.0]
+    elif state["winner"] == "x":
+        return [1.0, 0.0]
+    elif state["winner"] == "o":
+        return [0.0, 1.0]
     else:
         return [0.0, 0.0]
 
-def get_legal_actions(state: State) -> list[Action]:
-    """Returns legal actions for current state. Empty list if terminal."""
-    if state["winner"] is not None or state["is_draw"]:
-        return []
-    else:
-        return ["{},{}".format(row, col) for row in range(6) for col in range(6) if state["board"][row][col] == "."]
+# Function to get the legal actions for the current state
+def get_legal_actions(state: State) -> List[Action]:
+    legal_actions = []
+    for row in range(6):
+        for col in range(6):
+            if state["board"][row][col] == ".":
+                legal_actions.append(f"{row},{col}")
+    return legal_actions
 
-def get_observations(state: State) -> list[PlayerObservation]:
-    """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    observations = []
-    for i in range(2):
-        observation = {}
-        for row in range(6):
-            for col in range(6):
-                if state["board"][row][col] == ".":
-                    observation[f"{row},{col}"] = "empty"
-                elif state["board"][row][col] == "x":
-                    observation[f"{row},{col}"] = "x"
-                else:
-                    observation[f"{row},{col}"] = "o"
-        observations.append(observation)
+# Function to get the observations for each player
+def get_observations(state: State) -> List[PlayerObservation]:
+    observations = [
+        {"board": state["board"], "legal_actions": get_legal_actions(state)},
+        {"board": state["board"], "legal_actions": get_legal_actions(state)}
+    ]
     return observations

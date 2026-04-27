@@ -11,115 +11,105 @@ Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
-def get_initial_state() -> State:
-    """
-    Returns the initial game state before any actions are taken.
-    """
-    return {
-        "board": [["." for _ in range(6)] for _ in range(6)],
-        "current_player": 0,
-        "winner": None,
-        "turn_count": 0
-    }
-
-def apply_action(state: State, action: Action) -> State:
-    """
-    Returns the new state after an action has been taken.
-    Ensure that the previous state is not mutated; always return a new state object.
-    """
-    # Parse the action
-    row, col = map(int, action.split(","))
-    
-    # Check if the action is valid
-    if state["board"][row][col] != ".":
-        raise ValueError("Cell is already occupied.")
-    
-    # Update the board
-    state["board"][row][col] = "x" if state["current_player"] == 0 else "o"
-    
-    # Switch the current player
-    state["current_player"] = (state["current_player"] + 1) % 2
-    
-    # Increment the turn count
-    state["turn_count"] += 1
-    
-    # Check for win condition
-    if check_win(state):
-        state["winner"] = state["current_player"]
-    
-    # Check for draw condition
-    if state["turn_count"] == 36:
-        state["winner"] = None
-    
-    return state
-
-def check_win(state: State) -> bool:
-    """
-    Checks if a player has won the game.
-    """
-    # Check rows and columns
-    for i in range(6):
-        if state["board"][i][0] != "." and \
-           state["board"][i][0] == state["board"][i][1] == state["board"][i][2] == state["board"][i][3]:
+# Helper function to check if a player has won
+def check_win(board: List[List[int]], player: int, win_length: int) -> bool:
+    # Check horizontal lines
+    for row in board:
+        if all(cell == player for cell in row[:win_length]):
             return True
-        if state["board"][0][i] != "." and \
-           state["board"][0][i] == state["board"][1][i] == state["board"][2][i] == state["board"][3][i]:
+    # Check vertical lines
+    for col in range(len(board)):
+        if all(board[row][col] == player for row in range(win_length)):
             return True
-    
-    # Check diagonals
-    if state["board"][0][0] != "." and \
-       state["board"][0][0] == state["board"][1][1] == state["board"][2][2] == state["board"][3][3]:
-        return True
-    if state["board"][0][5] != "." and \
-       state["board"][0][5] == state["board"][1][4] == state["board"][2][3] == state["board"][3][2]:
-        return True
-    
+    # Check diagonal lines
+    for i in range(len(board) - win_length + 1):
+        if all(board[i + j][j] == player for j in range(win_length)):
+            return True
+        if all(board[i + j][len(board) - 1 - j] == player for j in range(win_length)):
+            return True
     return False
 
+# Initial state
+def get_initial_state() -> State:
+    return {
+        "board": [[0 for _ in range(6)] for _ in range(6)],
+        "current_player": 0,
+        "winner": None,
+        "draw": False
+    }
+
+# Apply action to the state
+def apply_action(state: State, action: Action) -> State:
+    row, col = map(int, action.split(","))
+    if state["board"][row][col] != 0:
+        raise ValueError("Cell is already occupied.")
+    state["board"][row][col] = state["current_player"] + 1  # Marking as 1 for 'x', 2 for 'o'
+    state["current_player"] = 1 - state["current_player"]
+    if check_win(state["board"], state["current_player"] + 1, 4):
+        state["winner"] = state["current_player"] + 1
+        state["draw"] = False
+    elif all(all(cell != 0 for cell in row) for row in state["board"]):
+        state["draw"] = True
+        state["winner"] = None
+    return state
+
+# Get current player
 def get_current_player(state: State) -> int:
-    """
-    Returns current player (e.g. 0 or 1), or -4 for terminal state.
-    """
     return state["current_player"]
 
+# Get player name
 def get_player_name(player_id: int) -> str:
-    """
-    Returns the name of the player.
-    """
-    return "Player 1" if player_id == 0 else "Player 2"
+    return "Player " + str(player_id + 1)
 
+# Get rewards
 def get_rewards(state: State) -> List[float]:
-    """
-    Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards.
-    """
     if state["winner"] is not None:
-        return [1.0, 0.0] if state["winner"] == 0 else [0.0, 1.0]
-    return [0.0, 0.0]
+        return [1.0, 0.0] if state["winner"] == 1 else [0.0, 1.0]
+    elif state["draw"]:
+        return [0.5, 0.5]
+    else:
+        return [0.0, 0.0]
 
+# Get legal actions
 def get_legal_actions(state: State) -> List[Action]:
-    """
-    Returns legal actions for current state. Empty list if terminal.
-    """
-    if state["winner"] is not None:
-        return []
-    
     legal_actions = []
     for row in range(6):
         for col in range(6):
-            if state["board"][row][col] == ".":
+            if state["board"][row][col] == 0:
                 legal_actions.append(f"{row},{col}")
     return legal_actions
 
+# Get observations
 def get_observations(state: State) -> List[PlayerObservation]:
-    """
-    Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state.
-    """
-    observations = []
-    for i in range(2):
-        observation = {}
-        observation["board"] = state["board"]
-        observation["current_player"] = get_current_player(state)
-        observation["winner"] = state["winner"]
-        observation["turn_count"] = state["turn_count"]
-        observations.append(observation)
-    return observations
+    player_0_board = [[cell for cell in row] for row in state["board"]]
+    player_1_board = [[6 - cell for cell in row] for row in state["board"]]
+    return [
+        {"board": player_0_board, "legal_actions": get_legal_actions(state)},
+        {"board": player_1_board, "legal_actions": get_legal_actions(state)}
+    ]
+
+# Example usage
+if __name__ == "__main__":
+    initial_state = get_initial_state()
+    print("Initial State:", initial_state)
+    
+    # Simulate a few moves
+    state = apply_action(initial_state, "0,0")
+    print("After Move 1:", state)
+    
+    state = apply_action(state, "1,1")
+    print("After Move 2:", state)
+    
+    state = apply_action(state, "2,2")
+    print("After Move 3:", state)
+    
+    state = apply_action(state, "3,3")
+    print("After Move 4:", state)
+    
+    state = apply_action(state, "4,4")
+    print("After Move 5:", state)
+    
+    state = apply_action(state, "5,5")
+    print("After Move 6:", state)
+    
+    print("Final State:", state)

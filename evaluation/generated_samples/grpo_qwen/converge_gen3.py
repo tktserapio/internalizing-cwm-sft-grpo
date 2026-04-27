@@ -11,112 +11,98 @@ Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
-# Helper function to create a state dictionary
-def create_state() -> State:
+# Helper function to check if a given position is within the board boundaries
+def is_within_bounds(pos: Tuple[int, int]) -> bool:
+    return 0 <= pos[0] <= 4 and 0 <= pos[1] <= 4
+
+# Initial state setup
+def get_initial_state() -> State:
+    # Player 0 (Blue) starts with two units at (0, 0) and (0, 4)
+    blue_units = [(0, 0), (0, 4)]
+    # Player 1 (Red) starts with two units at (4, 0) and (4, 4)
+    red_units = [(4, 0), (4, 4)]
     return {
-        'board': [
-            [' ', ' ', ' ', ' ', ' '],
-            [' ', ' ', ' ', ' ', ' '],
-            [' ', ' ', 'B', 'R', ' '],
-            [' ', ' ', ' ', ' ', ' '],
-            [' ', ' ', ' ', ' ', ' ']
-        ],
+        'blue_units': blue_units,
+        'red_units': red_units,
         'current_player': 0,
         'turn_count': 0,
-        'stunned_units': []
+        'center_square_occupied': False
     }
 
-# Required Functions
-def get_initial_state() -> State:
-    return create_state()
-
+# Apply an action to the current state
 def apply_action(state: State, action: Action) -> State:
-    # Parse the action
-    r1, c1, r2, c2 = map(int, action.split(' ')[1:])
+    new_state = state.copy()
+    if action == 'pass':
+        new_state['current_player'] = (new_state['current_player'] + 1) % 2
+        return new_state
     
-    # Update the board
-    board = state['board']
-    board[r1][c1], board[r2][c2] = board[r2][c2], board[r1][c1]
+    # Parse the action string
+    source_pos, dest_pos = action.split(' to ')[1], action.split(' to ')[2]
+    source_pos = tuple(map(int, source_pos.split(',')))
+    dest_pos = tuple(map(int, dest_pos.split(',')))
+    
+    # Check if the source and destination positions are valid
+    if not is_within_bounds(source_pos) or not is_within_bounds(dest_pos):
+        raise ValueError("Invalid position")
+    
+    # Move the unit
+    if source_pos in state['blue_units']:
+        new_state['blue_units'].remove(source_pos)
+        new_state['blue_units'].append(dest_pos)
+    elif source_pos in state['red_units']:
+        new_state['red_units'].remove(source_pos)
+        new_state['red_units'].append(dest_pos)
     
     # Update the current player
-    state['current_player'] = 1 - state['current_player']
+    new_state['current_player'] = (new_state['current_player'] + 1) % 2
+    new_state['turn_count'] += 1
     
-    # Apply stun mechanic
-    stunned_units = state['stunned_units']
-    for unit in stunned_units:
-        if abs(unit[0] - r2) <= 1 and abs(unit[1] - c2) <= 1:
-            stunned_units.remove(unit)
+    # Check for stun effect
+    for unit in state['blue_units']:
+        if abs(unit[0] - dest_pos[0]) + abs(unit[1] - dest_pos[1]) == 1:
+            new_state['blue_units'].remove(unit)
+            break
+    for unit in state['red_units']:
+        if abs(unit[0] - dest_pos[0]) + abs(unit[1] - dest_pos[1]) == 1:
+            new_state['red_units'].remove(unit)
             break
     
     # Check if the center square is occupied
-    if board[2][2] == 'B':
-        return {'state': 'win', 'winner': 0}
-    elif board[2][2] == 'R':
-        return {'state': 'win', 'winner': 1}
-    
-    # Increment turn count
-    state['turn_count'] += 1
-    
-    # Return the updated state
-    return state
+    if dest_pos == (2, 2):
+        new_state['center_square_occupied'] = True
+    return new_state
 
+# Get the current player
 def get_current_player(state: State) -> int:
     return state['current_player']
 
+# Get the name of the player
 def get_player_name(player_id: int) -> str:
     return 'Blue' if player_id == 0 else 'Red'
 
+# Get the rewards per player
 def get_rewards(state: State) -> List[float]:
-    if state['state'] == 'win':
-        return [1.0, 0.0] if state['winner'] == 0 else [0.0, 1.0]
+    if state['center_square_occupied']:
+        return [1.0, 0.0] if state['current_player'] == 0 else [0.0, 1.0]
     return [0.0, 0.0]
 
+# Get the legal actions for the current state
 def get_legal_actions(state: State) -> List[Action]:
-    board = state['board']
-    current_player = state['current_player']
-    actions = []
-    
-    # Get positions of units for the current player
-    units = [(r, c) for r, row in enumerate(board) for c, cell in enumerate(row) if cell == f'B{current_player}' or cell == f'R{1 - current_player}']
-    
-    for r, c in units:
-        # Horizontal movements
-        for dr, dc in [(0, 1), (1, 0), (-1, 0), (0, -1)]:
-            nr, nc = r + dr, c + dc
-            if 0 <= nr < 5 and 0 <= nc < 5 and board[nr][nc] == ' ':
-                actions.append(f'move ({r},{c}) to ({nr},{nc})')
-        
-        # Diagonal movements
-        for dr, dc in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
-            nr, nc = r + dr, c + dc
-            if 0 <= nr < 5 and 0 <= nc < 5 and board[nr][nc] == ' ':
-                actions.append(f'move ({r},{c}) to ({nr},{nc})')
-    
-    # Check if there are any stunned units
-    stunned_units = state['stunned_units']
-    for unit in units:
-        if unit in stunned_units:
-            stunned_units.remove(unit)
-            actions.append(f'move ({unit[0]},{unit[1]}) to ({unit[0]},{unit[1]})')
-    
-    # Check if the current player has no legal moves
-    if not actions:
-        actions.append('pass')
-    
-    return actions
+    legal_actions = []
+    for unit in state['blue_units']:
+        for i in range(5):
+            for j in range(5):
+                if is_within_bounds((i, j)) and (i, j) != unit:
+                    legal_actions.append(f'move {unit} to {(i, j)}')
+    for unit in state['red_units']:
+        for i in range(5):
+            for j in range(5):
+                if is_within_bounds((i, j)) and (i, j) != unit:
+                    legal_actions.append(f'move {unit} to {(i, j)}')
+    return legal_actions
 
+# Get the observations for each player
 def get_observations(state: State) -> List[PlayerObservation]:
-    board = state['board']
-    observations = []
-    
-    # Create observation for each player
-    for player_id in range(2):
-        obs = {'board': [], 'units': []}
-        for r in range(5):
-            for c in range(5):
-                if board[r][c] == f'B{player_id}':
-                    obs['units'].append((r, c))
-                obs['board'].append(board[r][c])
-        observations.append(obs)
-    
-    return observations
+    blue_obs = {'units': state['blue_units'], 'stunned_units': []}
+    red_obs = {'units': state['red_units'], 'stunned_units': []}
+    return [blue_obs, red_obs]

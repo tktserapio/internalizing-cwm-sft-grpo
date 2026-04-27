@@ -4,93 +4,87 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import Dict, List, Any
+from typing import Dict, List, Tuple
 
 # Type definitions
 Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
+# Helper function to convert coordinates to action string
+def coord_to_action(coord: Tuple[int, int]) -> Action:
+    row, col = coord
+    return f"{row},{col}"
+
+# Initial state of the game
 def get_initial_state() -> State:
-    """Returns the initial game state before any actions are taken."""
-    return {
-        'board': {
-            'A1': None,
-            'A2': None,
-            'A3': None,
-            'A4': None,
-            'B1': None,
-            'B2': None,
-            'B3': None,
-            'C1': None,
-            'C2': None,
-            'C3': None
-        },
-        'current_player': 0  # Black starts
-    }
+    # Initialize the board as an empty dictionary
+    return {}
 
+# Apply an action to the state
 def apply_action(state: State, action: Action) -> State:
-    """
-    Returns the new state after an action has been taken.
-    Ensure that the previous state is not mutated; always return a new state object.
-    """
-    new_state = state.copy()
-    cell_id = action
-    new_state['board'][cell_id] = new_state['current_player'] + 1  # Player's color
-    new_state['current_player'] = (new_state['current_player'] + 1) % 2  # Switch player
-    return new_state
+    # Convert the action string to coordinates
+    row, col = map(int, action.split(","))
+    # Add the action to the state
+    state[action] = {"color": "Black"} if row % 2 == 0 else {"color": "White"}
+    return state
 
+# Get the current player
 def get_current_player(state: State) -> int:
-    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    return state['current_player']
+    # Check if the state is terminal
+    if len(state) == 0:
+        return -4
+    # Determine the current player based on the last action
+    last_action = max(state.keys())
+    if int(last_action.split(",")[0]) % 2 == 0:
+        return 0  # Black's turn
+    else:
+        return 1  # White's turn
 
+# Get the name of the player
 def get_player_name(player_id: int) -> str:
-    """Returns the name of the player."""
-    return 'Black' if player_id == 0 else 'White'
+    return "Black" if player_id == 0 else "White"
 
+# Get rewards per player
 def get_rewards(state: State) -> List[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    # In a perfect information game like Y, there are no running rewards until the game ends.
+    # Since this is a perfect information game, there are no meaningful rewards yet
     return [0.0, 0.0]
 
+# Get legal actions for the current state
 def get_legal_actions(state: State) -> List[Action]:
-    """Returns legal actions for current state. Empty list if terminal."""
-    board = state['board']
-    legal_actions = []
-    for cell_id, value in board.items():
-        if value is None:
-            legal_actions.append(cell_id)
-    return legal_actions
+    # Legal actions are all the keys in the state dictionary
+    return list(state.keys())
 
+# Get observations for both players
 def get_observations(state: State) -> List[PlayerObservation]:
-    """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    observations = []
-    board = state['board']
-    for cell_id, value in board.items():
-        observation = {'cell': cell_id, 'color': value}
-        observations.append(observation)
-    return [observations, observations]
+    # Each player sees the same state
+    return [{}, {}]
 
 # Example usage
 if __name__ == "__main__":
-    initial_state = get_initial_state()
-    print("Initial State:", initial_state)
+    # Initialize the game state
+    state = get_initial_state()
     
     # Apply some actions
-    actions = ["A1", "A2", "B1", "C1", "A3", "B2"]
-    for action in actions:
-        new_state = apply_action(initial_state, action)
-        print(f"After applying action {action}:")
-        print(new_state)
-        
-    # Get current player
-    current_player = get_current_player(new_state)
-    print(f"Current Player: {get_player_name(current_player)}")
+    state = apply_action(state, "0,0")
+    state = apply_action(state, "1,1")
+    state = apply_action(state, "2,2")
+    state = apply_action(state, "3,3")
+    state = apply_action(state, "4,4")
+    state = apply_action(state, "5,5")
+    state = apply_action(state, "6,6")
+    state = apply_action(state, "7,7")
+    state = apply_action(state, "8,8")
+    state = apply_action(state, "9,9")
+    
+    # Get the current player
+    print(f"Current Player: {get_player_name(get_current_player(state))}")
     
     # Get legal actions
-    legal_actions = get_legal_actions(new_state)
-    print(f"Legal Actions: {legal_actions}")
+    print(f"Legal Actions: {get_legal_actions(state)}")
+    
+    # Get rewards
+    print(f"Rewards: {get_rewards(state)}")
     
     # Get observations
-    observations = get_observations(new_state)
-    print(f"Observations: {observations}")
+    print(f"Observations: {get_observations(state)}")

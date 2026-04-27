@@ -4,99 +4,69 @@ from copy import deepcopy
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, Counter
 
-from typing import Dict, List, Any
+from typing import Dict, List, Tuple
 
 # Type definitions
 Action = str
 State = Dict[str, Any]
 PlayerObservation = Dict[str, Any]
 
+# Helper function to parse the action string
+def parse_action(action_str: Action) -> Tuple[int, int, int, int]:
+    """Parses the action string into source and destination coordinates."""
+    parts = action_str.split(' to ')
+    src = tuple(map(int, parts[0].split(',')))
+    dst = tuple(map(int, parts[1].split(',')))
+    return src, dst
+
+# Required Functions
 def get_initial_state() -> State:
     """Returns the initial game state before any actions are taken."""
-    # Initial state with player positions and center square as unoccupied
+    # Initial positions for Blue (Player 0) and Red (Player 1)
+    blue_units = [(0, 0), (0, 4)]
+    red_units = [(4, 0), (4, 4)]
     return {
-        'board': [
-            ['-', '-', '-', '-', '-'],
-            ['-', '-', '-', '-', '-'],
-            ['-', '-', 'B', 'R', '-'],
-            ['-', '-', '-', '-', '-'],
-            ['-', '-', '-', '-', '-']
-        ],
+        'blue_units': blue_units,
+        'red_units': red_units,
         'current_player': 0,
         'turn_count': 0,
-        'center_occupied': False
+        'center_square_occupied': False
     }
 
 def apply_action(state: State, action: Action) -> State:
-    """
-    Returns the new state after an action has been taken.
-    Ensure that the previous state is not mutated; always return a new state object.
-    """
-    board = state['board']
-    current_player = state['current_player']
-    turn_count = state['turn_count']
+    """Returns the new state after an action has been taken."""
+    src, dst = parse_action(action)
+    new_state = state.copy()
     
-    # Parse the action
-    src = tuple(map(int, action.split(' ')[1].split(',')))
-    dest = tuple(map(int, action.split(' ')[3].split(',')))
+    # Check if the action is a valid move
+    if not (0 <= src[0] < 5 and 0 <= src[1] < 5 and 0 <= dst[0] < 5 and 0 <= dst[1] < 5):
+        raise ValueError("Invalid move coordinates")
     
-    # Check if the action is valid
-    if not is_valid_move(board, src, dest):
-        raise ValueError("Invalid move")
+    # Check if the destination is already occupied
+    if (dst[0], dst[1]) in new_state['blue_units'] + new_state['red_units']:
+        raise ValueError("Destination is occupied")
     
     # Apply the move
-    board[src[0]][src[1]], board[dest[0]][dest[1]] = board[dest[0]][dest[1]], board[src[0]][src[1]]
-    
-    # Update the current player
-    current_player = 1 if current_player == 0 else 0
-    
-    # Check for stun
-    if is_adjacent_to_stunned(board, src):
-        board[src[0]][src[1]] = '-'
+    if src == dst:
+        new_state['center_square_occupied'] = True
+    else:
+        new_state['blue_units'].append(dst) if new_state['current_player'] == 0 else new_state['red_units'].append(dst)
+        new_state['blue_units'].remove(src) if new_state['current_player'] == 0 else new_state['red_units'].remove(src)
     
     # Update the turn count
-    turn_count += 1
+    new_state['turn_count'] += 1
     
-    # Check if the center square is occupied
-    center_square = (2, 2)
-    if board[center_square[0]][center_square[1]] == 'B':
-        state['center_occupied'] = True
-    elif board[center_square[0]][center_square[1]] == 'R':
-        state['center_occupied'] = True
+    # Check for stun condition
+    if (new_state['blue_units'] + new_state['red_units']) and \
+       any(abs(src[0] - d[0]) <= 1 and abs(src[1] - d[1]) <= 1 for src in new_state['blue_units'] for d in new_state['red_units']):
+        new_state['current_player'] = 1 - new_state['current_player']
     
-    # Determine the winner
-    if state['center_occupied']:
-        state['winner'] = current_player
-    elif turn_count >= 50:
-        state['winner'] = -4  # Draw
-    
-    return state
-
-def is_valid_move(board, src, dest):
-    """
-    Checks if the move from src to dest is valid.
-    """
-    row, col = src
-    newRow, newCol = dest
-    if newRow < 0 or newRow > 4 or newCol < 0 or newCol > 4:
-        return False
-    if board[newRow][newCol] != '-':
-        return False
-    return True
-
-def is_adjacent_to_stunned(board, position):
-    """
-    Checks if the given position is adjacent to a stunned unit.
-    """
-    row, col = position
-    for dr, dc in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
-        newRow, newCol = row + dr, col + dc
-        if 0 <= newRow <= 4 and 0 <= newCol <= 4 and board[newRow][newCol] == 'S':
-            return True
-    return False
+    return new_state
 
 def get_current_player(state: State) -> int:
     """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
+    if state['center_square_occupied']:
+        return -4
     return state['current_player']
 
 def get_player_name(player_id: int) -> str:
@@ -105,43 +75,27 @@ def get_player_name(player_id: int) -> str:
 
 def get_rewards(state: State) -> List[float]:
     """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards."""
-    if state['winner'] == 0:
-        return [1.0, 0.0]
-    elif state['winner'] == 1:
-        return [0.0, 1.0]
-    elif state['winner'] == -4:
-        return [0.5, 0.5]  # Draw
-    else:
-        return [0.0, 0.0]
+    if state['center_square_occupied']:
+        return [-1.0, 1.0] if state['current_player'] == 0 else [1.0, -1.0]
+    return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> List[Action]:
     """Returns legal actions for current state. Empty list if terminal."""
-    board = state['board']
-    current_player = state['current_player']
     legal_actions = []
-    
-    for i in range(5):
-        for j in range(5):
-            if board[i][j] == 'B' and current_player == 0:
-                for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
-                    ni, nj = i + di, j + dj
-                    if 0 <= ni < 5 and 0 <= nj < 5 and board[ni][nj] == '-':
-                        legal_actions.append(f'move ({i},{j}) to ({ni},{nj})')
-            elif board[i][j] == 'R' and current_player == 1:
-                for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
-                    ni, nj = i + di, j + dj
-                    if 0 <= ni < 5 and 0 <= nj < 5 and board[ni][nj] == '-':
-                        legal_actions.append(f'move ({i},{j}) to ({ni},{nj})')
+    if state['current_player'] == 0:
+        for src in state['blue_units']:
+            for dst in [(src[0]+1, src[1]), (src[0]-1, src[1]), (src[0], src[1]+1), (src[0], src[1]-1), (src[0]+1, src[1]+1), (src[0]+1, src[1]-1), (src[0]-1, src[1]+1), (src[0]-1, src[1]-1)]:
+                if 0 <= dst[0] < 5 and 0 <= dst[1] < 5 and dst not in state['blue_units'] + state['red_units']:
+                    legal_actions.append(f'move {src} to {dst}')
+    else:
+        for src in state['red_units']:
+            for dst in [(src[0]+1, src[1]), (src[0]-1, src[1]), (src[0], src[1]+1), (src[0], src[1]-1), (src[0]+1, src[1]+1), (src[0]+1, src[1]-1), (src[0]-1, src[1]+1), (src[0]-1, src[1]-1)]:
+                if 0 <= dst[0] < 5 and 0 <= dst[1] < 5 and dst not in state['blue_units'] + state['red_units']:
+                    legal_actions.append(f'move {src} to {dst}')
     return legal_actions
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    board = state['board']
-    observations = []
-    for i in range(5):
-        for j in range(5):
-            if board[i][j] == 'B':
-                observations.append({'position': (i, j)})
-            elif board[i][j] == 'R':
-                observations.append({'position': (i, j)})
-    return observations
+    obs_0 = {'units': state['blue_units']}
+    obs_1 = {'units': state['red_units']}
+    return [obs_0, obs_1]

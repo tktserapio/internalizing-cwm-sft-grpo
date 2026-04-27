@@ -11,185 +11,170 @@ Action = str
 State = dict[str, Any]
 PlayerObservation = dict[str, Any]
 
-# Helper function to convert algebraic notation to coordinates
-def algebraic_to_coordinates(algebraic_notation):
-    file = algebraic_notation[0]
-    rank = 6 - int(algebraic_notation[1])  # Inverting ranks for easier calculation
-    return file, rank
+# Helper functions
+def convert_to_algebraic(square: tuple[int, int]) -> str:
+    """Converts a (rank, file) tuple to algebraic notation."""
+    return f"{chr(ord('a') + square[1])}{5 - square[0]}"
 
-# Function to convert coordinates to algebraic notation
-def coordinates_to_algebraic(file, rank):
-    return f"{chr(97 + file)}{6 - rank}"
+def convert_to_tuple(algebraic: str) -> tuple[int, int]:
+    """Converts algebraic notation to a (rank, file) tuple."""
+    return (5 - ord(algebraic[1]), ord(algebraic[0]) - ord('a'))
 
-# Function to get the initial state of the game
+def is_valid_move(state: State, action: Action) -> bool:
+    """Checks if the given action is valid in the current state."""
+    # Implement validation logic here
+    pass
+
 def get_initial_state() -> State:
-    # Initial board setup
+    """Returns the initial game state before any actions are taken."""
     initial_board = {
-        "a1": "R", "b1": "N", "c1": "B", "d1": "Q", "e1": "K",
-        "a2": "P", "b2": "P", "c2": "P", "d2": "P", "e2": "P",
-        "a3": ".", "b3": ".", "c3": ".", "d3": ".", "e3": ".",
-        "a4": ".", "b4": ".", "c4": ".", "d4": ".", "e4": ".",
-        "a5": "r", "b5": "n", "c5": "b", "d5": "q", "e5": "k"
+        'r': (1, 4), 'n': (2, 4), 'b': (3, 4), 'q': (4, 4), 'k': (5, 4),
+        'p': [(1, i) for i in range(5)], 
+        'R': (1, 1), 'N': (2, 1), 'B': (3, 1), 'Q': (4, 1), 'K': (5, 1)
     }
-    return {"board": initial_board}
+    return {
+        'board': initial_board,
+        'turn': 0,
+        'castling_rights': {'wK': True, 'wQ': True, 'bK': False, 'bQ': False},
+        'en_passant_target': None,
+        'halfmove_clock': 0,
+        'fullmove_number': 1,
+        'winner': None
+    }
 
-# Function to apply an action to the state
 def apply_action(state: State, action: Action) -> State:
-    # Convert action to pieces and coordinates
-    piece, from_square, to_square = action.split("_")
-    from_file, from_rank = algebraic_to_coordinates(from_square)
-    to_file, to_rank = algebraic_to_coordinates(to_square)
-    
-    # Create a deep copy of the state to avoid mutating the original state
+    """Returns the new state after an action has been taken."""
     new_state = copy.deepcopy(state)
+    piece, from_square, to_square = action.split('_')
+    from_square = convert_to_tuple(from_square)
+    to_square = convert_to_tuple(to_square)
     
-    # Update the board
-    new_state["board"][coordinates_to_algebraic(to_file, to_rank)] = new_state["board"].pop(coordinates_to_algebraic(from_file, from_rank))
+    # Handle pawn movement
+    if piece == 'p':
+        if state['board'][piece][0] == 1:  # White pawn
+            if to_square[0] == from_square[0] - 1 and to_square[1] == from_square[1]:
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+                new_state['halfmove_clock'] += 1
+                if to_square[0] == 0:
+                    new_state['board'][piece].append((0, to_square[1]))
+                    new_state['halfmove_clock'] += 1
+            elif to_square[0] == from_square[0] - 1 and to_square[1] == from_square[1] + 1:
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+                new_state['halfmove_clock'] += 1
+                if to_square[0] == 0:
+                    new_state['board'][piece].append((0, to_square[1]))
+                    new_state['halfmove_clock'] += 1
+        else:  # Black pawn
+            if to_square[0] == from_square[0] + 1 and to_square[1] == from_square[1]:
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+                new_state['halfmove_clock'] += 1
+                if to_square[0] == 4:
+                    new_state['board'][piece].append((4, to_square[1]))
+                    new_state['halfmove_clock'] += 1
+            elif to_square[0] == from_square[0] + 1 and to_square[1] == from_square[1] + 1:
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+                new_state['halfmove_clock'] += 1
+                if to_square[0] == 4:
+                    new_state['board'][piece].append((4, to_square[1]))
+                    new_state['halfmove_clock'] += 1
     
-    # Handle special cases like pawn promotion
-    if piece == "P":
-        if to_rank == 1 or to_rank == 5:
-            new_state["board"][coordinates_to_algebraic(to_file, to_rank)] += "Q"
+    # Handle piece movement
+    else:
+        if piece == 'R':
+            new_state['board'][piece].remove(from_square)
+            new_state['board'][piece].append(to_square)
+        elif piece == 'N':
+            if abs(to_square[0] - from_square[0]) == 1 and abs(to_square[1] - from_square[1]) == 2 or \
+               abs(to_square[0] - from_square[0]) == 2 and abs(to_square[1] - from_square[1]) == 1:
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+        elif piece == 'B':
+            if abs(to_square[0] - from_square[0]) == abs(to_square[1] - from_square[1]):
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+        elif piece == 'Q':
+            if abs(to_square[0] - from_square[0]) == abs(to_square[1] - from_square[1]) or \
+               to_square[0] == from_square[0] or to_square[1] == from_square[1]:
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+        elif piece == 'K':
+            if abs(to_square[0] - from_square[0]) <= 1 and abs(to_square[1] - from_square[1]) <= 1:
+                new_state['board'][piece].remove(from_square)
+                new_state['board'][piece].append(to_square)
+        elif piece == 'p':
+            if to_square[0] == 0 and piece == 'P' and from_square[0] == 1:
+                new_state['board']['Q'].append(to_square)
+            elif to_square[0] == 4 and piece == 'P' and from_square[0] == 3:
+                new_state['board']['Q'].append(to_square)
     
-    # Handle castling
-    # Castling is not implemented in this 5x5 variant
+    # Update castling rights
+    if piece == 'K':
+        if from_square[0] == 5 and to_square[0] == 7 and state['board']['R'][0] == (5, 1):
+            state['castling_rights']['wK'] = False
+        elif from_square[0] == 5 and to_square[0] == 3 and state['board']['R'][0] == (5, 1):
+            state['castling_rights']['wQ'] = False
+        elif from_square[0] == 1 and to_square[0] == 3 and state['board']['R'][0] == (1, 1):
+            state['castling_rights']['bK'] = False
+        elif from_square[0] == 1 and to_square[0] == 7 and state['board']['R'][0] == (1, 1):
+            state['castling_rights']['bQ'] = False
+    
+    # Update en passant target
+    if piece == 'p' and (to_square[0] == 4 or to_square[0] == 0):
+        new_state['en_passant_target'] = to_square
+    
+    # Update halfmove clock
+    if piece != 'p':
+        new_state['halfmove_clock'] += 1
+    
+    # Check for stalemate
+    if len(new_state['board']['p']) == 0 and len(new_state['board']['P']) == 0:
+        new_state['winner'] = 0 if new_state['turn'] == 0 else 1
+        return new_state
+    
+    # Check for checkmate
+    if is_in_check(new_state, new_state['turn']):
+        new_state['winner'] = 0 if new_state['turn'] == 0 else 1
+        return new_state
+    
+    # Check for draw conditions
+    if is_draw(new_state):
+        new_state['winner'] = 0 if new_state['turn'] == 0 else 1
+        return new_state
     
     return new_state
 
-# Function to get the current player
+def is_in_check(state: State, player: int) -> bool:
+    """Checks if the given player is in check."""
+    # Implement check logic here
+    pass
+
+def is_draw(state: State) -> bool:
+    """Checks if the game is in a draw condition."""
+    # Implement draw logic here
+    pass
+
 def get_current_player(state: State) -> int:
-    # White starts first
-    return 0 if state["board"]["e1"] == "R" else 1
+    """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
+    return state['turn']
 
-# Function to get the name of the player
 def get_player_name(player_id: int) -> str:
-    return "Player 0" if player_id == 0 else "Player 1"
+    """Returns the name of the player."""
+    return ['Player 0', 'Player 1'][player_id]
 
-# Function to get the rewards per player
 def get_rewards(state: State) -> list[float]:
-    # Check for checkmate/stalemate/draw conditions
-    # For simplicity, assume the game ends immediately upon checkmate
-    white_king_position = next((file, rank) for file, rank in state["board"].items() if state["board"][file + str(rank)] == "K")
-    black_king_position = next((file, rank) for file, rank in state["board"].items() if state["board"][file + str(rank)] == "k")
-    
-    if state["board"][white_king_position[0] + str(6 - white_king_position[1])] == "K":
-        return [-1.0, 1.0]
-    elif state["board"][black_king_position[0] + str(6 - black_king_position[1])] == "k":
-        return [1.0, -1.0]
-    
-    return [0.0, 0.0]
+    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
+    return [state['winner']] * 2
 
-# Function to get the legal actions for the current state
 def get_legal_actions(state: State) -> list[Action]:
-    legal_actions = []
-    for file, rank in state["board"].items():
-        if rank in ["R", "N", "B", "Q", "K"]:
-            # Generate possible moves for each piece
-            if rank in ["R", "N", "B", "Q"]:
-                generate_moves(file, rank, state["board"])
-            if rank == "K":
-                generate_castle_moves(file, state["board"])
-        elif rank == "P":
-            generate_pawn_moves(file, rank, state["board"])
-    
-    return legal_actions
+    """Returns legal actions for current state. Empty list if terminal."""
+    # Implement legal action generation logic here
+    pass
 
-# Helper function to generate moves for each piece
-def generate_moves(file, rank, board):
-    moves = []
-    if rank == "R":
-        moves.extend(generate_horizontal_vertical_moves(file, rank, board))
-    elif rank == "N":
-        moves.extend(generate_l_shape_moves(file, board))
-    elif rank == "B":
-        moves.extend(generate_diagonal_moves(file, board))
-    elif rank == "Q":
-        moves.extend(generate_horizontal_vertical_moves(file, rank, board))
-        moves.extend(generate_diagonal_moves(file, board))
-    elif rank == "K":
-        moves.extend(generate_castle_moves(file, board))
-    return moves
-
-# Helper function to generate horizontal-vertical moves
-def generate_horizontal_vertical_moves(file, rank, board):
-    moves = []
-    for i in range(1, 5):
-        new_file = file
-        new_rank = rank
-        if rank == "P":
-            new_rank = 6 - int(rank)
-        if new_file - i >= 0 and board.get(f"{new_file - i}{new_rank}") == ".":
-            moves.append(f"{file}{rank}_{file - i}{new_rank}")
-        if new_file + i <= 5 and board.get(f"{new_file + i}{new_rank}") == ".":
-            moves.append(f"{file}{rank}_{file + i}{new_rank}")
-    return moves
-
-# Helper function to generate l-shape moves
-def generate_l_shape_moves(file, board):
-    moves = []
-    for i in range(-1, 2):
-        for j in range(-1, 2):
-            if i != 0 and j != 0:
-                new_file = file
-                new_rank = 6 - int(file)
-                if new_file + i >= 0 and new_file + i <= 5 and new_rank + j >= 0 and new_rank + j <= 5:
-                    if board.get(f"{new_file + i}{new_rank + j}") in [".", "P"]:
-                        moves.append(f"{file}{rank}_{new_file + i}{new_rank + j}")
-    return moves
-
-# Helper function to generate diagonal moves
-def generate_diagonal_moves(file, board):
-    moves = []
-    for i in range(-1, 2):
-        for j in range(-1, 2):
-            if i != 0 and j != 0:
-                new_file = file
-                new_rank = 6 - int(file)
-                if new_file + i >= 0 and new_file + i <= 5 and new_rank + j >= 0 and new_rank + j <= 5:
-                    if board.get(f"{new_file + i}{new_rank + j}") in [".", "P"]:
-                        moves.append(f"{file}{rank}_{new_file + i}{new_rank + j}")
-    return moves
-
-# Helper function to generate castle moves
-def generate_castle_moves(file, board):
-    moves = []
-    if file == "a" and board.get("b1") == "R" and board.get("c1") == "." and board.get("d1") == ".":
-        moves.append("K_a1_R_a1")
-    if file == "e" and board.get("d5") == "R" and board.get("c5") == "." and board.get("b5") == ".":
-        moves.append("K_e1_R_e1")
-    return moves
-
-# Function to get observations for each player
 def get_observations(state: State) -> list[PlayerObservation]:
-    # Observations include the board state
-    return [{"board": state["board"]}]
-
-# Main function to run the game loop
-def main():
-    state = get_initial_state()
-    print("Initial State:")
-    print(state)
-    
-    while True:
-        current_player = get_current_player(state)
-        print(f"\nCurrent Player: {get_player_name(current_player)}")
-        
-        legal_actions = get_legal_actions(state)
-        print(f"Legal Actions: {legal_actions}")
-        
-        action = input("Enter your move (e.g., 'P_a2_a3'): ")
-        new_state = apply_action(state, action)
-        
-        print("\nNew State:")
-        print(new_state)
-        
-        rewards = get_rewards(new_state)
-        print(f"Rewards: {rewards}")
-        
-        if rewards[0] != 0.0 or rewards[1] != 0.0:
-            break
-        
-        state = new_state
-
-if __name__ == "__main__":
-    main()
+    """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
+    # Implement observation logic here
+    pass

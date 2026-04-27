@@ -30,7 +30,7 @@ def apply_action(state: State, action: Action) -> State:
     
     # Check if the action is valid
     if state["board"][row][col] != ".":
-        raise ValueError("Cell is already occupied.")
+        raise ValueError("Cell already occupied")
     
     # Update the board
     state["board"][row][col] = "x" if state["current_player"] == 0 else "o"
@@ -64,22 +64,33 @@ def check_winner(state: State):
            state["board"][i][0] == state["board"][i][1] == state["board"][i][2] == state["board"][i][3]:
             state["winner"] = "x" if state["board"][i][0] == "x" else "o"
             return
-        if state["board"][0][i] != "." and \
-           state["board"][0][i] == state["board"][1][i] == state["board"][2][i] == state["board"][3][i]:
-            state["winner"] = "x" if state["board"][0][i] == "x" else "o"
+    for j in range(6):
+        if state["board"][0][j] != "." and \
+           state["board"][0][j] == state["board"][1][j] == state["board"][2][j] == state["board"][3][j]:
+            state["winner"] = "x" if state["board"][0][j] == "x" else "o"
             return
-        if state["board"][4][i] != "." and \
-           state["board"][4][i] == state["board"][5][i] == state["board"][0][i] == state["board"][1][i]:
-            state["winner"] = "x" if state["board"][4][i] == "x" else "o"
+        if state["board"][0][j] != "." and \
+           state["board"][0][j] == state["board"][1][j] == state["board"][2][j] == state["board"][3][j]:
+            state["winner"] = "x" if state["board"][0][j] == "x" else "o"
             return
     
     # Check diagonals
     if state["board"][0][0] != "." and \
        state["board"][0][0] == state["board"][1][1] == state["board"][2][2] == state["board"][3][3]:
         state["winner"] = "x" if state["board"][0][0] == "x" else "o"
+        return
+    if state["board"][0][0] != "." and \
+       state["board"][0][0] == state["board"][1][1] == state["board"][2][2] == state["board"][3][3]:
+        state["winner"] = "x" if state["board"][0][0] == "x" else "o"
+        return
     if state["board"][0][5] != "." and \
        state["board"][0][5] == state["board"][1][4] == state["board"][2][3] == state["board"][3][2]:
         state["winner"] = "x" if state["board"][0][5] == "x" else "o"
+        return
+    if state["board"][0][5] != "." and \
+       state["board"][0][5] == state["board"][1][4] == state["board"][2][3] == state["board"][3][2]:
+        state["winner"] = "x" if state["board"][0][5] == "x" else "o"
+        return
 
 def get_current_player(state: State) -> int:
     """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
@@ -111,13 +122,8 @@ def get_legal_actions(state: State) -> List[Action]:
 
 def get_observations(state: State) -> List[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    observations = []
-    for i in range(6):
-        for j in range(6):
-            if state["board"][i][j] == ".":
-                observations.append({
-                    "row": i,
-                    "col": j,
-                    "board": state["board"]
-                })
+    observations = [
+        {"board": state["board"], "current_player": state["current_player"], "winner": state["winner"], "turn_count": state["turn_count"]},
+        {"board": state["board"], "current_player": state["current_player"], "winner": state["winner"], "turn_count": state["turn_count"]}
+    ]
     return observations

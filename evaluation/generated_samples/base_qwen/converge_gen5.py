@@ -14,105 +14,106 @@ PlayerObservation = dict[str, Any]
 # Helper functions
 def is_valid_move(action: Action, state: State) -> bool:
     """Check if the given action is valid based on the current state."""
-    # Extract coordinates from the action string
-    start, end = action.split(" to ")
-    start_row, start_col = map(int, start.split(","))
-    end_row, end_col = map(int, end.split(","))
+    # Extract source and destination coordinates from the action string
+    src_row, src_col = map(int, action.split(' to ')[0].split(','))
+    dst_row, dst_col = map(int, action.split(' to ')[1].split(','))
 
-    # Check if the move is within the board boundaries
-    if not (0 <= start_row < 5 and 0 <= start_col < 5 and 0 <= end_row < 5 and 0 <= end_col < 5):
+    # Check if the source and destination are within the board boundaries
+    if not (0 <= src_row < 5 and 0 <= src_col < 5 and 0 <= dst_row < 5 and 0 <= dst_col < 5):
         return False
 
-    # Check if the destination is empty
-    if (end_row, end_col) in state['board']:
+    # Check if the source and destination squares are empty
+    if state.get(f'{src_row},{src_col}') == 'occupied':
+        return False
+    if state.get(f'{dst_row},{dst_col}') == 'occupied':
+        return False
+
+    # Check if the move is orthogonal or diagonal
+    if abs(src_row - dst_row) + abs(src_col - dst_col) != 1:
         return False
 
     return True
 
 def apply_action(state: State, action: Action) -> State:
-    """Apply the given action to the state and return the new state."""
+    """Apply the given action to the current state and return the new state."""
     new_state = copy.deepcopy(state)
-    # Extract coordinates from the action string
-    start, end = action.split(" to ")
-    start_row, start_col = map(int, start.split(","))
-    end_row, end_col = map(int, end.split(","))
+    src_row, src_col = map(int, action.split(' to ')[0].split(','))
+    dst_row, dst_col = map(int, action.split(' to ')[1].split(','))
 
-    # Update the board with the new position
-    new_state['board'][end_row, end_col] = new_state['current_player']
-    del new_state['board'][start_row, start_col]
+    # Update the position of the moved unit
+    new_state[f'{dst_row},{dst_col}'] = 'occupied'
+    new_state.pop(f'{src_row},{src_col}')
 
-    # Update the current player
-    new_state['current_player'] = 1 - new_state['current_player']
+    # Check for stun condition
+    for key, value in new_state.items():
+        if value == 'occupied' and (abs(int(key.split(',')[0]) - src_row) + abs(int(key.split(',')[1]) - src_col)) == 1:
+            new_state[key] = 'stunned'
 
     return new_state
 
 def get_initial_state() -> State:
     """Returns the initial game state before any actions are taken."""
-    board = {(i, j): None for i in range(5) for j in range(5)}
-    board[(0, 0)], board[(0, 4)] = 'B', 'B'
-    board[(4, 0)], board[(4, 4)] = 'R', 'R'
-    state = {
-        'board': board,
-        'current_player': 0,
-        'turn_count': 0,
-        'stunned_units': {}
+    initial_state = {
+        '0,0': 'occupied',
+        '0,4': 'occupied',
+        '4,0': 'occupied',
+        '4,4': 'occupied',
+        '2,2': 'empty'
     }
-    return state
+    return initial_state
 
 def get_current_player(state: State) -> int:
     """Returns current player (e.g. 0 or 1), or -4 for terminal state."""
-    return state['current_player']
+    # Check if the center square is occupied
+    if state.get('2,2') == 'occupied':
+        return -4  # Terminal state
+    else:
+        # Determine the current player based on the last action
+        last_action = list(state.keys())[-1]
+        if last_action.startswith('move (0,0'):
+            return 0
+        elif last_action.startswith('move (4,4'):
+            return 1
+        else:
+            raise ValueError("Unexpected last action")
 
 def get_player_name(player_id: int) -> str:
     """Returns the name of the player."""
-    return 'Blue' if player_id == 0 else 'Red'
+    return ['Blue', 'Red'][player_id]
 
 def get_rewards(state: State) -> list[float]:
-    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards (e.g., current scores or chip stacks); otherwise returns [0.0, 0.0] until meaningful reward information is available."""
-    if state['current_player'] == 0 and state['board'][2, 2] == 'B':
-        return [1.0, 0.0]
-    elif state['current_player'] == 1 and state['board'][2, 2] == 'R':
-        return [0.0, 1.0]
-    else:
-        return [0.0, 0.0]
+    """Returns the rewards per player. May return non-zero values at non-terminal states if the game tracks running rewards."""
+    # In this simple implementation, we assume there are no running rewards
+    return [0.0, 0.0]
 
 def get_legal_actions(state: State) -> list[Action]:
     """Returns legal actions for current state. Empty list if terminal."""
-    legal_actions = []
-    current_player = state['current_player']
-    board = state['board']
-    current_player_units = [(r, c) for r, c in board.items() if board[(r, c)] == chr(ord('B') + current_player)]
-    opponent_units = [(r, c) for r, c in board.items() if board[(r, c)] != None and board[(r, c)] != chr(ord('B') + current_player)]
-
-    for unit in current_player_units:
-        for dr, dc in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
-            new_row, new_col = unit[0] + dr, unit[1] + dc
-            if (new_row, new_col) in board and board[(new_row, new_col)] is None:
-                legal_actions.append(f"move {unit} to ({new_row}, {new_col})")
-            elif (new_row, new_col) in opponent_units:
-                legal_actions.append(f"move {unit} to ({new_row}, {new_col})")
-
-    if not legal_actions:
-        return ["pass"]
+    current_player = get_current_player(state)
+    if current_player == -4:
+        return []  # Terminal state
     else:
+        legal_actions = []
+        for key, value in state.items():
+            if value == 'occupied':
+                for i in range(5):
+                    for j in range(5):
+                        if state.get(f'{i},{j}') == 'empty':
+                            action = f'move ({key.split(",")[0]}, {key.split(",")[1]}) to ({i}, {j})'
+                            if is_valid_move(action, state):
+                                legal_actions.append(action)
         return legal_actions
 
 def get_observations(state: State) -> list[PlayerObservation]:
     """Returns [player_0_obs, player_1_obs]. For perfect info games, both see the same state."""
-    board = state['board']
-    observations = []
-    for player_id in range(2):
-        observation = {}
-        for row in range(5):
-            for col in range(5):
-                if board[(row, col)] is not None and board[(row, col)] == chr(ord('B') + player_id):
-                    observation[(row, col)] = 1
-                else:
-                    observation[(row, col)] = 0
-        observations.append(observation)
-    return observations
+    player_0_obs = {}
+    player_1_obs = {}
 
-# Example usage
-initial_state = get_initial_state()
-print(get_observations(initial_state))
-print(get_legal_actions(initial_state))
+    for row in range(5):
+        for col in range(5):
+            if state.get(f'{row},{col}') == 'occupied':
+                if state.get(f'{row},{col}') == 'occupied':
+                    player_0_obs[(row, col)] = 1
+                else:
+                    player_1_obs[(row, col)] = 1
+
+    return [player_0_obs, player_1_obs]
