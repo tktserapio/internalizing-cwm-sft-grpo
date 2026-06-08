@@ -1,6 +1,8 @@
 # Internalizing CWM: SFT + GRPO
 
-Training LLMs to internalize code world models for game-playing via supervised fine-tuning (SFT) and Group Relative Policy Optimization (GRPO).
+ArXiv: https://arxiv.org/abs/2605.24375
+
+Training LLMs to internalize code world models for game-playing via supervised fine-tuning (SFT) and Group Relative Policy Optimization (GRPO). 
 
 ## Structure
 - **`config/`** — Game curriculum and training configuration
